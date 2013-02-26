@@ -126,22 +126,15 @@ string(TOUPPER KFS_OS_NAME_${CMAKE_SYSTEM_NAME} KFS_OS_NAME)
 add_definitions (-D${KFS_OS_NAME})
 
 #
-# Find the path to libfuse.so
+# Find the path to libfuse.so and fuse.h
 #
 
-SET(Fuse_LIBRARY_DIR "")
-IF (EXISTS "/lib64/libfuse.so")
-    SET(Fuse_LIBRARY_DIR "/lib64")
-ELSEIF (EXISTS "/opt/local/lib/libfuse.dylib")
-    SET(Fuse_LIBRARY_DIR "/opt/local/lib")
-ELSEIF (EXISTS "/usr/local/lib/libfuse.dylib" OR EXISTS "/usr/local/lib/libfuse_ino64.dylib")
-    SET(Fuse_LIBRARY_DIR "/usr/local/lib")
-    SET(Fuse_INCLUDE_DIR "/usr/local/include/osxfuse")
-ELSEIF (EXISTS "/usr/lib/libfuse.a" OR EXISTS "/usr/lib/libfuse.so")
-    SET(Fuse_LIBRARY_DIR "/usr/local/lib")
-ELSEIF (EXISTS "/lib/libfuse.a" OR EXISTS "/lib/libfuse.so")
-    SET(Fuse_LIBRARY_DIR "/lib")
-ENDIF (EXISTS "/lib64/libfuse.so")
+set (FUSE_FOUND FALSE)
+find_path (FUSE_INCLUDE_DIRS NAMES fuse.h DOC "Include path for fuse support")
+find_library (FUSE_LIBRARIES NAMES fuse DOC "Development libraries for fuse support")
+if (FUSE_INCLUDE_DIRS AND FUSE_LIBRARIES)
+  set (FUSE_FOUND TRUE)
+endif (FUSE_INCLUDE_DIRS AND FUSE_LIBRARIES)
 
 if(COMMAND cmake_policy)
     cmake_policy(SET CMP0003 NEW)
@@ -179,8 +172,7 @@ ELSE (JNI_FOUND)
     message(STATUS "JNI NOT found: NOT building qfs_access")
 ENDIF (JNI_FOUND)
 
-IF (NOT ${Fuse_LIBRARY_DIR} STREQUAL "")
-    message(STATUS "Found fuse")
-    include_directories ( ${Fuse_INCLUDE_DIR} )
+if (FUSE_FOUND)
+    message (STATUS "Found fuse")
     add_subdirectory (${KFS_DIR_PREFIX}src/cc/fuse src/cc/fuse)
-ENDIF (NOT ${Fuse_LIBRARY_DIR} STREQUAL "")
+endif (FUSE_FOUND)

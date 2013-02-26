@@ -27,7 +27,8 @@
 # Build the fuse binary; build it only on demand
 #
 add_executable (qfs_fuse kfs_fuse_main.cc)
-link_directories(${Fuse_LIBRARY_DIR})
+target_link_libraries (qfs_fuse ${FUSE_LIBRARIES})
+include_directories (${FUSE_INCLUDE_DIRS})
 
 IF (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SIZEOF_VOID_P STREQUAL "8" AND EXISTS "/usr/local/lib/libfuse_ino64.dylib")
     message(STATUS "Using fuse_ino64 dylib")
