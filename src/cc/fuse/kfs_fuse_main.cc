@@ -376,7 +376,7 @@ get_fs_args(struct fuse_args* args)
     }
     args->argc = 2;
     args->argv = (char**)calloc(sizeof(char*), args->argc + 1);
-    args->argv[0] = strdup("kfs_fuse");
+    args->argv[0] = strdup("qfs_fuse");
     args->argv[1] = strdup("-obig_writes");
     args->allocated = 1;
     return args;
@@ -513,7 +513,7 @@ void
 usage(int e)
 {
     //Undocumented option: 'rrw'. See massage_options() above.
-    fprintf(stderr, "usage: kfs_fuse kfshost mountpoint [-o opt1[,opt2..]]\n"
+    fprintf(stderr, "usage: qfs_fuse kfshost mountpoint [-o opt1[,opt2..]]\n"
                     "       eg: kfs_fuse 127.0.0.1:20000 "
                            "/mnt/kfs -o allow_other,ro\n");
     exit(e);
