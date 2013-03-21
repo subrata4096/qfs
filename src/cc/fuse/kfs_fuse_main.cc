@@ -104,7 +104,7 @@ fuse_rmdir(const char *path)
 static int
 fuse_rename(const char *src, const char *dst)
 {
-    return client->Rename(src, dst, false);
+    return client->Rename(src, dst, true);
 }
 
 static int
