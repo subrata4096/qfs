@@ -38,6 +38,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <time.h>
+#include <utime.h>
 
 using std::string;
 using std::vector;
@@ -258,6 +260,15 @@ fuse_chown(const char *path, uid_t user, gid_t group)
     );
 }
 
+static int
+fuse_utimens(const char *path, const struct timespec ts[2])
+{
+    struct timeval mtime;
+    mtime.tv_sec = ts[1].tv_sec;
+    mtime.tv_usec = ts[1].tv_nsec / 1000;
+    return client->SetMtime(path, mtime);
+}
+
 struct fuse_operations ops = {
         fuse_getattr,
         NULL,                   /* readlink */
@@ -294,6 +305,11 @@ struct fuse_operations ops = {
         fuse_create,            /* create */
         fuse_ftruncate,         /* ftruncate */
         fuse_fgetattr,          /* fgetattr */
+
+        /* defined in version 2.6 */
+        NULL,                   /* lock */
+        fuse_utimens,           /* utimens */
+        NULL,                   /* bmap */
 };
 
 struct fuse_operations ops_readonly = {
