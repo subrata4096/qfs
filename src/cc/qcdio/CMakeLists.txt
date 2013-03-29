@@ -43,6 +43,9 @@ add_library (qcdio-shared SHARED ${sources})
 set_target_properties (qcdio-shared PROPERTIES OUTPUT_NAME "qfs_qcdio")
 set_target_properties (qcdio PROPERTIES OUTPUT_NAME "qfs_qcdio")
 
+add_executable (iovperf iovperf.c)
+target_link_libraries (iovperf qcdio pthread)
+
 #
 # Since the objects have to be built twice, set this up so they don't
 # clobber each other.
