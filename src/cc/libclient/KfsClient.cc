@@ -2586,7 +2586,7 @@ KfsClientImpl::Rename(const char* src, const char* dst, bool overwrite)
     int res = GetPathComponents(src, &srcParentFid, srcFileName, &srcPath,
         kInvalidateSubCountsFlag);
     if (res < 0) {
-        KFS_LOG_STREAM_DEBUG << "reanme: " <<
+        KFS_LOG_STREAM_DEBUG << "rename: " <<
             src << " " << dst << " status: " << res <<
         KFS_LOG_EOM;
         return res;
@@ -2597,7 +2597,7 @@ KfsClientImpl::Rename(const char* src, const char* dst, bool overwrite)
     res = GetPathComponents(dst, &dstParentFid, dstFileName, &dstPath,
         kInvalidateSubCountsFlag);
     if (res < 0) {
-        KFS_LOG_STREAM_DEBUG << "reanme: " <<
+        KFS_LOG_STREAM_DEBUG << "rename: " <<
             src << " " << dst << " status: " << res <<
         KFS_LOG_EOM;
         return res;
@@ -2609,7 +2609,7 @@ KfsClientImpl::Rename(const char* src, const char* dst, bool overwrite)
                 dstPath.c_str(), srcPath.c_str(), overwrite);
     DoMetaOpWithRetry(&op);
 
-    KFS_LOG_STREAM_DEBUG << "reanme: " <<
+    KFS_LOG_STREAM_DEBUG << "rename: " <<
         srcPath << " " << dstPath << " status: " << op.status <<
     KFS_LOG_EOM;
 
