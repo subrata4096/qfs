@@ -55,7 +55,6 @@ if (NOT USE_STATIC_LIB_LINKAGE)
     if (NOT Boost_USE_STATIC_LIBS)
       target_link_libraries(kfsMeta-shared kfsCommon-shared kfsIO-shared crypto)
     endif (NOT Boost_USE_STATIC_LIBS)
-    install (kfsMeta-shared RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
 endif (NOT USE_STATIC_LIB_LINKAGE)
 
 set (exe_files metaserver logcompactor filelister qfsfsck)
@@ -91,3 +90,8 @@ install (TARGETS ${exe_files} kfsMeta
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib/static)
 
+if (NOT USE_STATIC_LIB_LINKAGE)
+    install (TARGETS kfsMeta-shared
+            RUNTIME DESTINATION bin
+            LIBRARY DESTINATION lib)
+endif (NOT USE_STATIC_LIB_LINKAGE)

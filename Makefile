@@ -40,6 +40,16 @@ release: prep
 	if test -x "`which mvn 2>/dev/null`"; then \
 		./src/java/javabuild.sh ; fi
 
+shared: prep
+	cd build && \
+	{ test -d shared || mkdir shared; } && \
+	cd shared && \
+	cmake -D CMAKE_BUILD_TYPE=RelWithDebInfo -D USE_STATIC_LIB_LINKAGE=OFF ../.. && \
+	$(MAKE) install
+	./src/java/javabuild.sh clean
+	if test -x "`which mvn 2>/dev/null`"; then \
+		./src/java/javabuild.sh ; fi
+
 debug: prep
 	cd build && \
 	{ test -d debug || mkdir debug; } && \
@@ -108,4 +118,4 @@ test-release: release
 	cd build/release && ../../src/test-scripts/qfstest.sh
 
 clean:
-	rm -rf build/release build/debug build/qfs-*.tgz build/java
+	rm -rf build/release build/debug build/qfs-*.tgz build/java build/shared

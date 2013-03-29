@@ -58,9 +58,6 @@ if (NOT USE_STATIC_LIB_LINKAGE)
     if (NOT Boost_USE_STATIC_LIBS)
        target_link_libraries(tools-shared kfsClient-shared kfsCommon-shared)
     endif (NOT Boost_USE_STATIC_LIBS)
-    install (tools-shared
-            RUNTIME DESTINATION bin/tools
-            LIBRARY DESTINATION lib)
 endif (NOT USE_STATIC_LIB_LINKAGE)
 
 add_dependencies (tools kfsClient)
@@ -99,3 +96,9 @@ install (TARGETS ${exe_files} tools
         RUNTIME DESTINATION bin/tools
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib/static)
+
+if (NOT USE_STATIC_LIB_LINKAGE)
+    install (TARGETS tools-shared
+            RUNTIME DESTINATION bin/tools
+            LIBRARY DESTINATION lib)
+endif (NOT USE_STATIC_LIB_LINKAGE)

@@ -40,9 +40,6 @@ if (NOT USE_STATIC_LIB_LINKAGE)
     add_library (kfsEmulator-shared SHARED ${lib_srcs})
     set_target_properties (kfsEmulator-shared PROPERTIES OUTPUT_NAME "qfs_emulator")
     set_target_properties (kfsEmulator-shared PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-    install (kfsEmulator-shared
-            RUNTIME DESTINATION bin/emulator
-            LIBRARY DESTINATION lib)
     if (NOT Boost_USE_STATIC_LIBS)
         target_link_libraries(kfsEmulator-shared kfsMeta-shared kfsCommon-shared kfsIO-shared)
     endif (NOT Boost_USE_STATIC_LIBS)
@@ -76,3 +73,8 @@ install (TARGETS ${exe_files} kfsEmulator
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib/static)
 
+if (NOT USE_STATIC_LIB_LINKAGE)
+    install(TARGETS kfsEmulator-shared
+            RUNTIME DESTINATION bin/emulator
+            LIBRARY DESTINATION lib)
+endif (NOT USE_STATIC_LIB_LINKAGE)
