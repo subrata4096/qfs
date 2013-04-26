@@ -38,7 +38,6 @@
 #include "kfsio/Globals.h"
 #include "kfsio/NetManager.h"
 #include "qcdio/QCUtils.h"
-#include "qcdio/qcstutils.h"
 
 #include <algorithm>
 #include <string>
@@ -1037,6 +1036,7 @@ ClientSM::GrantedSelf(ClientSM::ByteCount byteCount, bool devBufManagerFlag)
     if (! mNetConnection->IsGood()) {
         return;
     }
+    mGrantedFlag = true;
     HandleEvent(EVENT_NET_READ, &(mNetConnection->GetInBuffer()));
 }
 }

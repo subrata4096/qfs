@@ -290,21 +290,52 @@ struct ChunkManager::ChunkDirInfo : public ITimeout
         if (availableSpace < 0) {
             return;
         }
-        notStableSpace += nbytes;
-        if (notStableSpace > totalSpace) {
-            notStableSpace = totalSpace;
-        }
-        if (notStableSpace < 0) {
+        if (notStableOpenCount <= 0) {
             notStableSpace = 0;
+        } else {
+            notStableSpace += nbytes;
+            if (totalSpace < notStableSpace) {
+                notStableSpace = totalSpace;
+            }
+            if (notStableSpace < 0) {
+                notStableSpace = 0;
+            } else {
+                notStableSpace = min(notStableSpace,
+                    notStableOpenCount *
+                        (int64_t)(CHUNKSIZE + KFS_CHUNK_HEADER_SIZE));
+            }
         }
-        totalNotStableSpace += nbytes;
-        if (totalNotStableSpace < 0) {
-            totalNotStableSpace = 0;
+        if (totalNotStableOpenCount <= 0) {
+            totalNotStableOpenCount = 0;
+        } else {
+            totalNotStableSpace += nbytes;
+            if (totalSpace < totalNotStableSpace) {
+                totalNotStableSpace = totalSpace;
+            }
+            if (totalNotStableSpace < 0) {
+                totalNotStableSpace = 0;
+            } else {
+                totalNotStableSpace = min(totalNotStableSpace,
+                    totalNotStableOpenCount *
+                        (int64_t)(CHUNKSIZE + KFS_CHUNK_HEADER_SIZE));
+            }
         }
         if (dirCountSpaceAvailable && dirCountSpaceAvailable != this) {
-            dirCountSpaceAvailable->totalNotStableSpace += nbytes;
-            if (dirCountSpaceAvailable->totalNotStableSpace < 0) {
-                dirCountSpaceAvailable->totalNotStableSpace = 0;
+            ChunkDirInfo& di = *dirCountSpaceAvailable;
+            if (di.totalNotStableOpenCount <= 0) {
+                di.totalNotStableSpace = 0;
+            } else {
+                di.totalNotStableSpace += nbytes;
+                if (di.totalSpace < di.totalNotStableSpace) {
+                    di.totalNotStableSpace = di.totalSpace;
+                }
+                if (di.totalNotStableSpace < 0) {
+                    di.totalNotStableSpace = 0;
+                } else {
+                    di.totalNotStableSpace = min(di.totalNotStableSpace,
+                        di.totalNotStableOpenCount *
+                        (int64_t)(CHUNKSIZE + KFS_CHUNK_HEADER_SIZE));
+                }
             }
         }
     }
@@ -521,6 +552,8 @@ struct ChunkManager::ChunkDirInfo : public ITimeout
                 "\r\n"
             "Buffered-io: "           << (mChunkDir.bufferedIoFlag ? 1 : 0) <<
                 "\r\n"
+            "Space-reservation: "     <<
+                (mChunkDir.supportsSpaceReservatonFlag ? 1 : 0) <<  "\r\n"
             "Wait-avg-usec: "         <<
                 (bufMgr ? bufMgr->GetWaitingAvgUsecs() : int64_t(0)) << "\r\n"
             "Wait-avg-bytes: "        <<
@@ -4636,11 +4669,13 @@ ChunkManager::StartDiskIo()
             continue;
         }
         // UpdateCountFsSpaceAvailable() below will set the following.
-        it->dirCountSpaceAvailable = 0;
-        it->deviceId               = dit->second.mDeviceId;
-        it->dirLock                = dit->second.mLockFdPtr;
-        it->availableSpace         = 0;
-        it->totalSpace             = it->usedSpace;
+        it->dirCountSpaceAvailable      = 0;
+        it->deviceId                    = dit->second.mDeviceId;
+        it->dirLock                     = dit->second.mLockFdPtr;
+        it->availableSpace              = 0;
+        it->totalSpace                  = it->usedSpace;
+        it->supportsSpaceReservatonFlag =
+            dit->second.mSupportsSpaceReservatonFlag;
         it->availableChunks.Clear();
         it->availableChunks.Swap(dit->second.mChunkInfos);
         string errMsg;
@@ -4668,6 +4703,7 @@ ChunkManager::StartDiskIo()
             " space:"
             " available: "      << it->availableSpace <<
             " used: "           << it->usedSpace <<
+            " sprsrv: "         << it->supportsSpaceReservatonFlag <<
         KFS_LOG_EOM;
         StorageTiers::mapped_type& tier = mStorageTiers[it->storageTier];
         assert(find(tier.begin(), tier.end(), it) == tier.end());
@@ -4888,10 +4924,11 @@ ChunkManager::ChunkDirInfo::FsSpaceAvailDone(int code, void* data)
                 // Virtually reserve 64MB + 8K for each not stable chunk.
                 const ChunkDirInfo& dir = dirCountSpaceAvailable ?
                     *dirCountSpaceAvailable : *this;
-                availableSpace = max(int64_t(0), availableSpace +
-                    dir.totalNotStableSpace -
-                    dir.totalNotStableOpenCount *
-                        (int64_t)(CHUNKSIZE + KFS_CHUNK_HEADER_SIZE)
+                availableSpace = min(totalSpace,
+                    max(int64_t(0), availableSpace +
+                        dir.totalNotStableSpace -
+                        dir.totalNotStableOpenCount *
+                            (int64_t)(CHUNKSIZE + KFS_CHUNK_HEADER_SIZE))
                 );
             }
         }
@@ -5486,8 +5523,7 @@ ChunkManager::CheckChunkDirs()
                     " used: "            << it->usedSpace <<
                     " countAvail: "      << it->IsCountFsSpaceAvailable() <<
                     " updateCntAvail: "  << updateCountFsSpaceAvailableFlag <<
-                    (it->supportsSpaceReservatonFlag ?
-                        "supports space reservation " : "") <<
+                    " sprsrv: "          << it->supportsSpaceReservatonFlag <<
                     " chunks: "          << it->availableChunks.GetSize() <<
                 KFS_LOG_EOM;
                 StorageTiers::mapped_type& tier = mStorageTiers[it->storageTier];
