@@ -32,6 +32,7 @@
 #include "common/MsgLogger.h"
 #include "common/Properties.h"
 #include "common/kfserrno.h"
+#include "qcdio/qcstutils.h"
 
 #include <cerrno>
 #include <sstream>
@@ -76,6 +77,7 @@ RemoteSyncSM::UpdateRecvTimeout()
 // State machine for communication with other chunk servers.
 RemoteSyncSM::RemoteSyncSM(const ServerLocation &location)
     : KfsCallbackObj(),
+      NetThreadClient(),
       mNetConnection(),
       mLocation(location),
       mSeqnum(NextSeq()),
@@ -83,10 +85,12 @@ RemoteSyncSM::RemoteSyncSM(const ServerLocation &location)
       mReplySeqNum(-1),
       mReplyNumBytes(0),
       mRecursionCount(0),
+      mPendingFinishFlag(false),
       mLastRecvTime(0),
       mIStream(),
       mWOStream()
 {
+    SET_HANDLER(this, &RemoteSyncSM::HandleEvent);
 }
 
 kfsSeq_t
@@ -98,14 +102,18 @@ RemoteSyncSM::NextSeqnum()
 
 RemoteSyncSM::~RemoteSyncSM()
 {
-    if (mNetConnection)
+    if (mNetConnection) {
         mNetConnection->Close();
+    }
     assert(mDispatchedOps.size() == 0);
 }
 
 bool
 RemoteSyncSM::Connect()
 {
+    if (mPendingFinishFlag) {
+        return false;
+    }
     assert(! mNetConnection);
 
     KFS_LOG_STREAM_DEBUG <<
@@ -136,8 +144,6 @@ RemoteSyncSM::Connect()
         " succeeded, status: " << res <<
     KFS_LOG_EOM;
 
-    SET_HANDLER(this, &RemoteSyncSM::HandleEvent);
-
     mNetConnection.reset(new NetConnection(sock, this));
     mNetConnection->SetDoingNonblockingConnect();
     mNetConnection->SetMaxReadAhead(kMaxCmdHeaderLength);
@@ -147,14 +153,16 @@ RemoteSyncSM::Connect()
     // to be notified, so that we can close connection.
     mNetConnection->SetInactivityTimeout(sOpResponseTimeoutSec);
     // Add this to the poll vector
-    globalNetManager().AddConnection(mNetConnection);
-
+    gChunkServer.AddConnection(*this, mNetConnection);
     return true;
 }
 
 void
 RemoteSyncSM::Enqueue(KfsOp* op)
 {
+    if (gChunkServer.Enqueue(*this, op)) {
+        return;
+    }
     if (mNetConnection && ! mNetConnection->IsGood()) {
         KFS_LOG_STREAM_INFO <<
             "Lost connection to peer " << mLocation <<
@@ -207,7 +215,7 @@ RemoteSyncSM::Enqueue(KfsOp* op)
         // send the data as well
         WritePrepareFwdOp* const wpfo = static_cast<WritePrepareFwdOp*>(op);
         op->status = 0;
-        mNetConnection->WriteCopy(&wpfo->owner.dataBuf,
+        mNetConnection->GetOutBuffer().Copy(&wpfo->owner.dataBuf,
             wpfo->owner.dataBuf.BytesConsumable());
         if (wpfo->owner.replyRequestedFlag) {
             if (! mDispatchedOps.insert(make_pair(op->seq, op)).second) {
@@ -221,7 +229,7 @@ RemoteSyncSM::Enqueue(KfsOp* op)
         if (op->op == CMD_RECORD_APPEND) {
             // send the append over; we'll get an ack back
             RecordAppendOp* const ra = static_cast<RecordAppendOp*>(op);
-            mNetConnection->Write(&ra->dataBuf, ra->numBytes);
+            mNetConnection->GetOutBuffer().Move(&ra->dataBuf, ra->numBytes);
         }
         if (! mDispatchedOps.insert(make_pair(op->seq, op)).second) {
             die("duplicate seq. number");
@@ -229,34 +237,46 @@ RemoteSyncSM::Enqueue(KfsOp* op)
     }
     UpdateRecvTimeout();
     if (mRecursionCount <= 0 && mNetConnection) {
-        mNetConnection->StartFlush();
+        gChunkServer.StartFlush(*this, mNetConnection);
     }
 }
 
 int
-RemoteSyncSM::HandleEvent(int code, void *data)
+RemoteSyncSM::HandleEvent(int code, void* data)
 {
-    IOBuffer *iobuf;
-    int msgLen = 0;
+    QCStMutexLocker lock(gChunkServer.GetMutex());
+
     // take a ref to prevent the object from being deleted
     // while we are still in this function.
-    RemoteSyncSMPtr self = shared_from_this();
-    const char *reason = "error";
+    const RemoteSyncSMPtr self = shared_from_this();
+    const char*           reason = "error";
 
     mRecursionCount++;
     assert(mRecursionCount > 0);
     switch (code) {
-    case EVENT_NET_READ:
+    case EVENT_NET_READ: {
+        if (! mNetConnection) {
+            break;
+        }
+        if (mPendingFinishFlag) {
+            mNetConnection->Close();
+            mNetConnection.reset();
+            break;
+        }
         mLastRecvTime = globalNetManager().Now();
         // We read something from the network.  Run the RPC that
         // came in if we got all the data for the RPC
-        iobuf = (IOBuffer *) data;
-        while ((mReplyNumBytes > 0 || IsMsgAvail(iobuf, &msgLen)) &&
+        IOBuffer& iobuf = mNetConnection->GetInBuffer();
+        if (&iobuf != data) {
+            die("RemoteSyncSM: invalid read event");
+        }
+        int msgLen = 0;
+        while ((mReplyNumBytes > 0 || IsMsgAvail(&iobuf, &msgLen)) &&
                 HandleResponse(iobuf, msgLen) >= 0)
             {}
         UpdateRecvTimeout();
         break;
-
+    }
     case EVENT_NET_WROTE:
         // Something went out on the network.  For now, we don't
         // track it. Later, we may use it for tracking throttling
@@ -280,14 +300,14 @@ RemoteSyncSM::HandleEvent(int code, void *data)
         break;
 
     default:
-        assert(!"Unknown event");
+        die("RemoteSyncSM: unexpected event");
         break;
     }
     assert(mRecursionCount > 0);
     if (mRecursionCount <= 1) {
         const bool connectedFlag = mNetConnection && mNetConnection->IsGood();
         if (connectedFlag) {
-            mNetConnection->StartFlush();
+            gChunkServer.StartFlush(*this, mNetConnection);
         }
         if (! connectedFlag || ! mNetConnection || ! mNetConnection->IsGood()) {
             // we are done...
@@ -300,15 +320,15 @@ RemoteSyncSM::HandleEvent(int code, void *data)
 }
 
 int
-RemoteSyncSM::HandleResponse(IOBuffer *iobuf, int msgLen)
+RemoteSyncSM::HandleResponse(IOBuffer& iobuf, int msgLen)
 {
     DispatchedOps::iterator i = mDispatchedOps.end();
-    int nAvail = iobuf->BytesConsumable();
+    int nAvail = iobuf.BytesConsumable();
 
     if (mReplyNumBytes <= 0) {
         assert(msgLen >= 0 && msgLen <= nAvail);
         if (sTraceRequestResponse) {
-            IOBuffer::IStream is(*iobuf, msgLen);
+            IOBuffer::IStream is(iobuf, msgLen);
             string            line;
             while (getline(is, line)) {
                 KFS_LOG_STREAM_DEBUG << reinterpret_cast<void*>(this) <<
@@ -318,9 +338,9 @@ RemoteSyncSM::HandleResponse(IOBuffer *iobuf, int msgLen)
         }
         Properties prop;
         const char separator(':');
-        prop.loadProperties(mIStream.Set(*iobuf, msgLen), separator, false);
+        prop.loadProperties(mIStream.Set(iobuf, msgLen), separator, false);
         mIStream.Reset();
-        iobuf->Consume(msgLen);
+        iobuf.Consume(msgLen);
         mReplySeqNum = prop.getValue("Cseq", (kfsSeq_t) -1);
         if (mReplySeqNum < 0) {
             KFS_LOG_STREAM_ERROR <<
@@ -361,11 +381,11 @@ RemoteSyncSM::HandleResponse(IOBuffer *iobuf, int msgLen)
                 const int off(rop->offset % IOBufferData::GetDefaultBufferSize());
                 if (off > 0) {
                     IOBuffer buf;
-                    buf.ReplaceKeepBuffersFull(iobuf, off, nAvail);
-                    iobuf->Move(&buf);
-                    iobuf->Consume(off);
+                    buf.ReplaceKeepBuffersFull(&iobuf, off, nAvail);
+                    iobuf.Move(&buf);
+                    iobuf.Consume(off);
                 } else {
-                    iobuf->MakeBuffersFull();
+                    iobuf.MakeBuffersFull();
                 }
             } else if (op->op == CMD_SIZE) {
                 SizeOp* const sop = static_cast<SizeOp*>(op);
@@ -402,12 +422,12 @@ RemoteSyncSM::HandleResponse(IOBuffer *iobuf, int msgLen)
         mDispatchedOps.erase(i);
         if (op->op == CMD_READ) {
             ReadOp* const rop = static_cast<ReadOp*>(op);
-            rop->dataBuf.Move(iobuf, mReplyNumBytes);
+            rop->dataBuf.Move(&iobuf, mReplyNumBytes);
             rop->numBytesIO = mReplyNumBytes;
         } else if (op->op == CMD_GET_CHUNK_METADATA) {
             GetChunkMetadataOp* const gcm =
                 static_cast<GetChunkMetadataOp*>(op);
-            gcm->dataBuf.Move(iobuf, mReplyNumBytes);
+            gcm->dataBuf.Move(&iobuf, mReplyNumBytes);
         }
         mReplyNumBytes = 0;
         // op->HandleEvent(EVENT_DONE, op);
@@ -462,76 +482,60 @@ void
 RemoteSyncSM::Finish()
 {
     FailAllOps();
+    mPendingFinishFlag = true;
+    if (gChunkServer.RemoveServer(*this)) {
+        return;
+    }
     if (mNetConnection) {
         mNetConnection->Close();
         mNetConnection.reset();
     }
-    // if the object was owned by the chunkserver, have it release the reference
-    gChunkServer.RemoveServer(this);
 }
 
-//
-// Utility functions to operate on a list of remotesync servers
-//
-
-class RemoteSyncSMMatcher {
-    const ServerLocation myLoc;
-public:
-    RemoteSyncSMMatcher(const ServerLocation &loc)
-        :  myLoc(loc)
-        {}
-    bool operator() (const RemoteSyncSMPtr& other)
-    {
-        return other->GetLocation() == myLoc;
-    }
-};
-
 RemoteSyncSMPtr
-FindServer(RemoteSyncSMList &remoteSyncers, const ServerLocation &location,
-                bool connect)
+RemoteSyncSM::FindServer(
+    RemoteSyncSM::RemoteSyncSMList& remoteSyncers,
+    const ServerLocation&           location,
+    bool                            connect)
 {
-    RemoteSyncSMPtr peer;
-
-    RemoteSyncSMList::iterator const i = find_if(
-        remoteSyncers.begin(), remoteSyncers.end(),
-        RemoteSyncSMMatcher(location));
-    if (i != remoteSyncers.end()) {
-        peer = *i;
-        return peer;
-    }
-    if (!connect) {
+    RemoteSyncSMPtr& peer = remoteSyncers[location];
+    if (peer) {
         return peer;
     }
     peer.reset(new RemoteSyncSM(location));
-    if (peer->Connect()) {
-        remoteSyncers.push_back(peer);
-    } else {
-        // we couldn't connect...so, force destruction
-        peer.reset();
+    if (! connect || peer->Connect()) {
+        return peer;
     }
-    return peer;
+    remoteSyncers.erase(location);
+    return RemoteSyncSMPtr();
 }
 
 void
-RemoveServer(RemoteSyncSMList& remoteSyncers, RemoteSyncSM* target)
+RemoteSyncSM::RemoveServer(
+    RemoteSyncSM::RemoteSyncSMList& remoteSyncers,
+    RemoteSyncSM*                   target)
 {
     if (! target) {
         return;
     }
-    RemoteSyncSMList::iterator const i = find(
-        remoteSyncers.begin(), remoteSyncers.end(), target->shared_from_this());
-    if (i != remoteSyncers.end()) {
-        remoteSyncers.erase(i);
+    RemoteSyncSMList::iterator const it =
+        remoteSyncers.find(target->GetLocation());
+    if (it->second.get() == target) {
+        remoteSyncers.erase(it);
     }
 }
 
 void
-ReleaseAllServers(RemoteSyncSMList& remoteSyncers)
+RemoteSyncSM::ReleaseAllServers(
+    RemoteSyncSM::RemoteSyncSMList& remoteSyncers)
 {
+    RemoteSyncSMPtr r;
     while (! remoteSyncers.empty()) {
-        RemoteSyncSMPtr const r = remoteSyncers.front();
-        remoteSyncers.pop_front();
+        RemoteSyncSMList::iterator const it = remoteSyncers.begin();
+        r.swap(it->second);
+        remoteSyncers.erase(it);
         r->Finish();
+        r.reset();
     }
 }
 

@@ -360,7 +360,9 @@ public:
         return &mNetManagerEntry;
     }
     void Update(bool resetTimer = true);
-
+    KfsCallbackObj* GetCallback() const {
+        return mCallbackObj;
+    }
 private:
     NetManagerEntry mNetManagerEntry;
     const bool      mListenOnly:1;

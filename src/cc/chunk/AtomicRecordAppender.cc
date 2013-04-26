@@ -2294,8 +2294,8 @@ AtomicRecordAppender::MakeChunkStable(MakeChunkStableOp *op /* = 0 */)
         " size: "        << mNextWriteOffset <<
         " in flight:"
         " replication: " << mReplicationsInFlight <<
-        " ios: "      << mIoOpsInFlight <<
-        (op ? " " : "")  << KfsOp::ShowOp(op) <<
+        " ios: "         << mIoOpsInFlight <<
+        " op: "          << KfsOp::ShowOp(op) <<
     KFS_LOG_EOM;
     if (! mMakeChunkStableOp) {
         FatalError();

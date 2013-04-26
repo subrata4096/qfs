@@ -1142,10 +1142,7 @@ Replicator::Run(ReplicateChunkOp* op)
         if (ReplicatorImpl::GetUseConnectionPoolFlag()) {
             peer = gChunkServer.FindServer(op->location);
         } else {
-            peer.reset(new RemoteSyncSM(op->location));
-            if (! peer->Connect()) {
-                peer.reset();
-            }
+            peer = RemoteSyncSM::CreateConnected(op->location);
         }
         if (! peer) {
             KFS_LOG_STREAM_ERROR << "replication:"

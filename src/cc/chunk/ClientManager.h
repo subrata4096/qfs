@@ -27,10 +27,11 @@
 #ifndef _CLIENTMANAGER_H
 #define _CLIENTMANAGER_H
 
-#include <cassert>
-#include <inttypes.h>
 #include "kfsio/Acceptor.h"
 #include "ClientSM.h"
+
+#include <cassert>
+#include <inttypes.h>
 
 namespace KFS
 {
@@ -106,13 +107,7 @@ public:
     };
     bool BindAcceptor(int port);
     bool StartListening();
-    KfsCallbackObj *CreateKfsCallbackObj(NetConnectionPtr &conn) {
-        ClientSM *clnt = new ClientSM(conn);
-        assert(mCounters.mClientCount >= 0);
-        mCounters.mAcceptCount++;
-        mCounters.mClientCount++;
-        return clnt;
-    }
+    KfsCallbackObj* CreateKfsCallbackObj(NetConnectionPtr& conn);
     void Remove(ClientSM * /* clnt */) {
         assert(mCounters.mClientCount > 0);
         mCounters.mClientCount--;

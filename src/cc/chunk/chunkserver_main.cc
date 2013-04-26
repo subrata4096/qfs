@@ -474,7 +474,7 @@ static void SigHupHandler(int /* sig */)
 }
 
 int
-ChunkServerMain::Run(int argc, char **argv)
+ChunkServerMain::Run(int argc, char** argv)
 {
     if (argc < 2) {
         cout << "Usage: " << argv[0] <<
@@ -524,7 +524,10 @@ ChunkServerMain::Run(int argc, char **argv)
         gLogger.Init(mLogDir);
         gMetaServerSM.SetMetaInfo(
             mMetaServerLoc, mClusterKey, mChunkServerRackId, mMD5Sum, mProp);
-        ret = gChunkServer.MainLoop() ? 0 : 1;
+        ret = gChunkServer.MainLoop(
+            mProp.getValue("chunkServer.netThread.count",         0),
+            mProp.getValue("chunkServer.netThread.fistCpuIndex", -1)
+        ) ? 0 : 1;
         gChunkManager.Shutdown();
     }
     NetErrorSimulatorConfigure(globalNetManager());

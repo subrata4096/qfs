@@ -51,7 +51,7 @@ struct MetaRequest;
 class ClientSM : public KfsCallbackObj
 {
 public:
-    ClientSM(const NetConnectionPtr&     conn,
+    ClientSM(const NetConnectionPtr& conn,
         ClientManager::ClientThread* thread      = 0,
         IOBuffer::WOStream*          wostr       = 0,
         char*                        parseBuffer = 0);
@@ -65,7 +65,7 @@ public:
     //   - submit the request for execution
     //   - when the request is done, send a response back.
     //
-    int HandleRequest(int code, void *data);
+    int HandleRequest(int code, void* data);
     ClientSM*& GetNext()
         { return mNext; }
     const NetConnectionPtr& GetConnection() const

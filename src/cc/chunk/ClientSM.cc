@@ -172,6 +172,7 @@ ClientSM::SetParameters(const Properties& prop)
 
 ClientSM::ClientSM(NetConnectionPtr &conn)
     : KfsCallbackObj(),
+      NetThreadClient(),
       BufferManager::Client(),
       mNetConnection(conn),
       mCurOp(0),
@@ -188,6 +189,7 @@ ClientSM::ClientSM(NetConnectionPtr &conn)
       mDevBufMgrClients(),
       mDevBufMgr(0),
       mGrantedFlag(false),
+      mTerminateFlag(false),
       mDevCliMgrAllocator()
 {
     if (! mNetConnection) {
@@ -257,13 +259,16 @@ ClientSM::SendResponse(KfsOp* op)
             timespent << " usec." <<
     KFS_LOG_EOM;
 
-    op->Response(mWOStream.Set(mNetConnection->GetOutBuffer()));
+    IOBuffer& outBuf = mNetConnection->GetOutBuffer();
+    op->Response(mWOStream.Set(outBuf));
     mWOStream.Reset();
 
     IOBuffer* iobuf = 0;
     int       len   = 0;
     op->ResponseContent(iobuf, len);
-    mNetConnection->Write(iobuf, len);
+    if (iobuf && 0 < len) {
+        outBuf.Move(iobuf, len);
+    }
     gClientManager.RequestDone(timespent, *op);
 }
 
@@ -278,6 +283,11 @@ ClientSM::SendResponse(KfsOp* op)
 int
 ClientSM::HandleRequest(int code, void* data)
 {
+    QCStMutexLocker lock(gChunkServer.GetMutex());
+
+    if (mTerminateFlag) {
+        return HandleTerminate(code, data);
+    }
     if (mRecursionCnt < 0 || ! mNetConnection) {
         die("ClientSM: invalid recursion count or null connection");
         return -1;
@@ -296,6 +306,7 @@ ClientSM::HandleRequest(int code, void* data)
             KFS_LOG_EOM;
             break;
         }
+        mGrantedFlag = false;
         // We read something from the network.  Run the RPC that
         // came in.
         int       cmdLen = 0;
@@ -340,12 +351,17 @@ ClientSM::HandleRequest(int code, void* data)
     }
 
     case EVENT_CMD_DONE: {
+        KfsOp* op = reinterpret_cast<KfsOp*>(data);
+        if (gChunkServer.CmdDone(*this, op)) {
+            mRecursionCnt--;
+            return 0;
+        }
         // An op finished execution.  Send response back in FIFO
-        if (! data || mOps.empty()) {
+        if (! op || mOps.empty()) {
             die("invalid null op completion");
+            mRecursionCnt--;
             return -1;
         }
-        KfsOp* op = reinterpret_cast<KfsOp*>(data);
         gChunkServer.OpFinished();
         op->done = true;
         if (sTraceRequestResponseFlag) {
@@ -443,7 +459,7 @@ ClientSM::HandleRequest(int code, void* data)
 
     assert(mRecursionCnt > 0);
     if (mRecursionCnt == 1) {
-        mNetConnection->StartFlush();
+        gChunkServer.StartFlush(*this, mNetConnection);
         if (mNetConnection->IsGood()) {
             // Enforce 5 min timeout if connection has pending read and write.
             mNetConnection->SetInactivityTimeout(
@@ -458,17 +474,15 @@ ClientSM::HandleRequest(int code, void* data)
             }
         } else {
             RemoteSyncSMList serversToRelease;
-
             mRemoteSyncers.swap(serversToRelease);
             // get rid of the connection to all the peers in daisy chain;
             // if there were any outstanding ops, they will all come back
             // to this method as EVENT_CMD_DONE and we clean them up above.
-            ReleaseAllServers(serversToRelease);
+            RemoteSyncSM::ReleaseAllServers(serversToRelease);
             ReleaseChunkSpaceReservations();
             mRecursionCnt--;
             // if there are any disk ops, wait for the ops to finish
-            mNetConnection->SetOwningKfsCallbackObj(0);
-            SET_HANDLER(this, &ClientSM::HandleTerminate);
+            mTerminateFlag = true;
             return HandleTerminate(EVENT_NET_ERROR, 0);
         }
     }
@@ -486,8 +500,9 @@ ClientSM::HandleRequest(int code, void* data)
 int
 ClientSM::HandleTerminate(int code, void* data)
 {
-    if (mRecursionCnt < 0 || ! mNetConnection) {
-        die("ClientSM terminate: invalid recursion count or null connection");
+    if (mRecursionCnt < 0 || ! mNetConnection || ! mTerminateFlag) {
+        die("ClientSM terminate:"
+            " invalid state, recursion count or null connection");
         return -1;
     }
     mRecursionCnt++;
@@ -1001,7 +1016,7 @@ ClientSM::ReleaseChunkSpaceReservations()
 RemoteSyncSMPtr
 ClientSM::FindServer(const ServerLocation &loc, bool connect)
 {
-    return KFS::FindServer(mRemoteSyncers, loc, connect);
+    return RemoteSyncSM::FindServer(mRemoteSyncers, loc, connect);
 }
 
 void
@@ -1015,10 +1030,13 @@ ClientSM::GrantedSelf(ClientSM::ByteCount byteCount, bool devBufManagerFlag)
         " dev. mgr: " << (const void*)mDevBufMgr <<
     KFS_LOG_EOM;
     assert(devBufManagerFlag == (mDevBufMgr != 0));
+    mGrantedFlag = true;
+    if (gChunkServer.ScheduleNetRead(*this, mNetConnection)) {
+        return;
+    }
     if (! mNetConnection->IsGood()) {
         return;
     }
-    QCStValueChanger<bool> change(mGrantedFlag, true);
     HandleEvent(EVENT_NET_READ, &(mNetConnection->GetInBuffer()));
 }
 }

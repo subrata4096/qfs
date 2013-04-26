@@ -27,36 +27,41 @@
 #ifndef _CHUNKSERVER_H
 #define _CHUNKSERVER_H
 
+#include "NetThreadClient.h"
 #include "ChunkManager.h"
 #include "ClientManager.h"
 #include "ClientSM.h"
 #include "MetaServerSM.h"
 #include "RemoteSyncSM.h"
+#include "qcdio/QCMutex.h"
+#include "kfsio/NetConnection.h"
 
 namespace KFS
 {
 using std::string;
-using std::list;
 
 // Chunk server globals and main event loop.
 class ChunkServer
 {
+private:
 public:
-    ChunkServer() :
-        mOpCount(0),
-        mUpdateServerIpFlag(false),
-        mLocation(),
-        mRemoteSyncers()
+    ChunkServer()
+        : mOpCount(0),
+          mUpdateServerIpFlag(false),
+          mLocation(),
+          mRemoteSyncers(),
+          mMutex(0),
+          mNetThreads(0)
         {}
-
+    ~ChunkServer();
     bool Init(int clientAcceptPort, const string& serverIp);
-    bool MainLoop();
+    bool MainLoop(int threadCount, int firstCpuIndex);
     bool IsLocalServer(const ServerLocation& location) const {
         return mLocation == location;
     }
     RemoteSyncSMPtr FindServer(const ServerLocation& location,
                                bool connect = true);
-    void RemoveServer(RemoteSyncSM* target);
+    bool RemoveServer(RemoteSyncSM& target);
     string GetMyLocation() const {
         return mLocation.ToString();
     }
@@ -80,12 +85,68 @@ public:
         return mUpdateServerIpFlag;
     }
     inline void SetLocation(const ServerLocation& loc);
+    QCMutex* GetMutex()
+        { return mMutex; }
+    bool Enqueue(RemoteSyncSM& sm, KfsOp* op)
+        { return (mNetThreads && EnqueueSelf(sm, op)); }
+    KfsCallbackObj* NewNetConnection(
+        NetThreadClient&  netThreadClient,
+        KfsCallbackObj*   client,
+        NetConnectionPtr& connection)
+    {
+        return (mNetThreads ?
+            NewNetConnectionSelf(netThreadClient, client, connection) :
+            client
+        );
+    }
+    void AddConnection(
+        NetThreadClient&        netThreadClient,
+        const NetConnectionPtr& connection);
+    bool CmdDone(ClientSM& sm, KfsOp* op)
+        { return (mNetThreads && CmdDoneSelf(sm, op)); }
+    bool ScheduleNetRead(
+        NetThreadClient&        netThreadClient,
+        const NetConnectionPtr& connection)
+    {
+        return (mNetThreads &&
+            ScheduleNetReadSelf(netThreadClient, connection));
+    }
+    void StartFlush(
+        NetThreadClient&        netThreadClient,
+        const NetConnectionPtr& connection)
+    {
+        if (mNetThreads) {
+            StartFlushSelf(netThreadClient, connection);
+        } else {
+            connection->StartFlush();
+        }
+    }
 private:
+    typedef NetThreadClient::NetThread     NetThread;
+    typedef RemoteSyncSM::RemoteSyncSMList RemoteSyncSMList;
     // # of ops in the system
     int              mOpCount;
     bool             mUpdateServerIpFlag;
     ServerLocation   mLocation;
     RemoteSyncSMList mRemoteSyncers;
+    QCMutex*         mMutex;
+    NetThread*       mNetThreads;
+    struct {
+        size_t mStorage[
+            (sizeof(QCMutex) + sizeof(size_t) - 1) / sizeof(size_t)];
+    }                mMutexStorage;
+    KfsCallbackObj* NewNetConnectionSelf(
+        NetThreadClient&  netThreadClient,
+        KfsCallbackObj*   client,
+        NetConnectionPtr& connection);
+    bool CmdDoneSelf(ClientSM& sm, KfsOp* op);
+    bool EnqueueSelf(RemoteSyncSM& sm, KfsOp* op);
+    bool ScheduleNetReadSelf(
+        NetThreadClient&        netThreadClient,
+        const NetConnectionPtr& connection);
+    void StartFlushSelf(
+        NetThreadClient&        netThreadClient,
+        const NetConnectionPtr& connection);
 private:
     // No copy.
     ChunkServer(const ChunkServer&);

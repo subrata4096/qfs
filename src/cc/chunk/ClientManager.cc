@@ -25,6 +25,7 @@
 //----------------------------------------------------------------------------
 
 #include "ClientManager.h"
+#include "ChunkServer.h"
 
 namespace KFS
 {
@@ -47,6 +48,16 @@ ClientManager::StartListening()
     }
     mAcceptor->StartListening();
     return mAcceptor->IsAcceptorStarted();
+}
+
+KfsCallbackObj*
+ClientManager::CreateKfsCallbackObj(NetConnectionPtr& conn)
+{
+    ClientSM* const clnt = new ClientSM(conn);
+    assert(mCounters.mClientCount >= 0);
+    mCounters.mAcceptCount++;
+    mCounters.mClientCount++;
+    return gChunkServer.NewNetConnection(*clnt, clnt, conn);
 }
 
 }

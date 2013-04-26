@@ -41,6 +41,7 @@
 #include "RemoteSyncSM.h"
 #include "KfsOps.h"
 #include "BufferManager.h"
+#include "NetThreadClient.h"
 
 namespace KFS
 {
@@ -56,13 +57,14 @@ class Properties;
 // KFS client protocol state machine.
 class ClientSM :
     public KfsCallbackObj,
+    public NetThreadClient,
     private BufferManager::Client
 {
 public:
     static void SetParameters(const Properties& prop);
 
     ClientSM(NetConnectionPtr &conn);
-    ~ClientSM(); 
+    ~ClientSM();
 
     //
     // Sequence:
@@ -77,10 +79,6 @@ public:
     //            schedule that data to be sent out and transition back to READ START
     //       
     int HandleRequest(int code, void *data);
-
-    // This is a terminal state handler.  In this state, we wait for
-    // all outstanding ops to finish and then destroy this.
-    int HandleTerminate(int code, void *data);
 
     // For daisy-chain writes, retrieve the server object for the
     // chunkserver running at the specified location.
@@ -114,6 +112,7 @@ public:
     virtual void Granted(ByteCount byteCount)
         { GrantedSelf(byteCount, false); }
 private:
+    typedef RemoteSyncSM::RemoteSyncSMList RemoteSyncSMList;
     typedef deque<pair<KfsOp*, ByteCount> > OpsQueue;
     // There is a dependency in waiting for a write-op to finish
     // before we can execute a write-sync op. Use this struct to track
@@ -234,6 +233,7 @@ private:
     DevBufferManagerClients    mDevBufMgrClients;
     BufferManager*             mDevBufMgr;
     bool                       mGrantedFlag;
+    bool                       mTerminateFlag;
     DevClientMgrAllocator      mDevCliMgrAllocator;
 
     static bool                sTraceRequestResponseFlag;
@@ -265,6 +265,9 @@ private:
         BufferManager&         bufMgr,
         BufferManager::Client* mgrCli);
     void GrantedSelf(ByteCount byteCount, bool devBufManagerFlag);
+    // This is a terminal state handler.  In this state, we wait for
+    // all outstanding ops to finish and then destroy this.
+    int HandleTerminate(int code, void *data);
 private:
     // No copy.
     ClientSM(const ClientSM&);

@@ -27,6 +27,7 @@
 #ifndef CHUNKSERVER_REMOTESYNCSM_H
 #define CHUNKSERVER_REMOTESYNCSM_H
 
+#include "NetThreadClient.h"
 #include "common/kfsdecls.h"
 #include "common/StdAllocator.h"
 #include "kfsio/KfsCallbackObj.h"
@@ -42,7 +43,6 @@
 namespace KFS
 {
 using std::map;
-using std::list;
 using std::less;
 
 class RemoteSyncSMTimeoutImpl;
@@ -51,23 +51,18 @@ struct KfsOp;
 // State machine for communication with other chunk servers: daisy chain rpc
 // forwarding, and re-replication data and meta-data chunk read.
 class RemoteSyncSM : public KfsCallbackObj,
+                     public NetThreadClient,
                      public boost::enable_shared_from_this<RemoteSyncSM>
 {
 public:
+    RemoteSyncSM(const ServerLocation& location);
+    virtual ~RemoteSyncSM();
 
-    RemoteSyncSM(const ServerLocation &location);
-
-    ~RemoteSyncSM();
-
-    bool Connect();
-
-    void Enqueue(KfsOp *op);
-
+    void Enqueue(KfsOp* op);
     void Finish();
-
     int HandleEvent(int code, void *data);
 
-    ServerLocation GetLocation() const {
+    const ServerLocation& GetLocation() const {
         return mLocation;
     }
     static void SetTraceRequestResponse(bool flag) {
@@ -78,6 +73,31 @@ public:
     }
     static int GetResponseTimeoutSec() {
         return sOpResponseTimeoutSec;
+    }
+
+    typedef boost::shared_ptr<RemoteSyncSM> RemoteSyncSMPtr;
+    typedef map<
+        ServerLocation,
+        RemoteSyncSMPtr,
+        less<ServerLocation>,
+        StdFastAllocator<
+            std::pair<const ServerLocation, RemoteSyncSMPtr>
+        >
+    > RemoteSyncSMList;
+
+    static RemoteSyncSMPtr FindServer(RemoteSyncSMList& remoteSyncers,
+        const ServerLocation& location, bool connect);
+    static void RemoveServer(
+        RemoteSyncSMList& remoteSyncers, RemoteSyncSM* target);
+    static void ReleaseAllServers(RemoteSyncSMList& remoteSyncers);
+    static RemoteSyncSMPtr CreateConnected(const ServerLocation& location)
+    {
+        RemoteSyncSMPtr ret;
+        ret.reset(new RemoteSyncSM(location));
+        if (! ret->Connect()) {
+            ret.reset();
+        }
+        return ret;
     }
 
 private:
@@ -99,6 +119,7 @@ private:
     kfsSeq_t           mReplySeqNum;
     int                mReplyNumBytes;
     int                mRecursionCount;
+    bool               mPendingFinishFlag;
     time_t             mLastRecvTime;
     IOBuffer::IStream  mIStream;
     IOBuffer::WOStream mWOStream;
@@ -110,8 +131,9 @@ private:
     /// for the op; in such cases, we need to know if we got the full
     /// response. 
     /// @retval 0 if we got the response; -1 if we need to wait
-    int HandleResponse(IOBuffer *iobuf, int cmdLen);
+    int HandleResponse(IOBuffer& iobuf, int cmdLen);
     void FailAllOps();
+    bool Connect();
     inline void UpdateRecvTimeout();
     static bool sTraceRequestResponse;
     static int  sOpResponseTimeoutSec;
@@ -121,16 +143,7 @@ private:
     RemoteSyncSM& operator=(const RemoteSyncSM&);
 };
 
-typedef boost::shared_ptr<RemoteSyncSM> RemoteSyncSMPtr;
-typedef list<
-    RemoteSyncSMPtr,
-    StdFastAllocator<RemoteSyncSMPtr>
-> RemoteSyncSMList;
-
-RemoteSyncSMPtr FindServer(RemoteSyncSMList& remoteSyncers,
-    const ServerLocation &location, bool connect);
-void RemoveServer(RemoteSyncSMList& remoteSyncers, RemoteSyncSM* target);
-void ReleaseAllServers(RemoteSyncSMList& remoteSyncers);
+typedef RemoteSyncSM::RemoteSyncSMPtr RemoteSyncSMPtr;
 
 }
 
