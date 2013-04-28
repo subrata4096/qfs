@@ -816,7 +816,8 @@ Tree::recomputeDirSize(MetaFattr* dirattr)
  * @param[in] dirattr  The directory we are processing
  */
 int
-Tree::changeDirReplication(MetaFattr* dirattr, int16_t numReplicas)
+Tree::changeDirReplication(MetaFattr* dirattr, int16_t numReplicas,
+    kfsSTier_t minSTier, kfsSTier_t maxSTier)
 {
     if (! dirattr || dirattr->type != KFS_DIR) {
         return -ENOTDIR;
@@ -832,14 +833,15 @@ Tree::changeDirReplication(MetaFattr* dirattr, int16_t numReplicas)
             continue;
         }
         MetaFattr *fa = getFattr(entries[i]->id());
-        if (fa == NULL)
-            continue;
-        if (fa->type == KFS_DIR) {
-            // Do a depth first traversal
-            changeDirReplication(fa, numReplicas);
+        if (! fa) {
             continue;
         }
-        changeFileReplication(fa, numReplicas);
+        if (fa->type == KFS_DIR) {
+            // Do a depth first traversal
+            changeDirReplication(fa, numReplicas, minSTier, maxSTier);
+            continue;
+        }
+        changeFileReplication(fa, numReplicas, minSTier, maxSTier);
     }
     return 0;
 }
@@ -2046,28 +2048,54 @@ Tree::rename(fid_t parent, const string& oldname, const string& newname,
  * \return      status code (-errno on failure)
  */
 int
-Tree::changePathReplication(fid_t fid, int16_t numReplicas)
+Tree::changePathReplication(fid_t fid, int16_t numReplicas,
+    kfsSTier_t minSTier, kfsSTier_t maxSTier)
 {
     MetaFattr *fa = getFattr(fid);
 
-    if (fa == NULL)
+    if (! fa) {
         return -ENOENT;
-
-    if (fa->type == KFS_DIR)
-        return changeDirReplication(fa, numReplicas);
-
-    return changeFileReplication(fa, numReplicas);
+    }
+    if (fa->type == KFS_DIR) {
+        return changeDirReplication(fa, numReplicas, minSTier, maxSTier);
+    }
+    return changeFileReplication(fa, numReplicas, minSTier, maxSTier);
 
 }
 
 int
-Tree::changeFileReplication(MetaFattr *fa, int16_t numReplicas)
+Tree::changeFileReplication(MetaFattr *fa, int16_t numReplicas,
+    kfsSTier_t minSTier, kfsSTier_t maxSTier)
 {
     if (numReplicas <= 0) {
         return -EINVAL;
     }
     if (fa->type != KFS_FILE) {
         return -EISDIR;
+    }
+    if (((minSTier != kKfsSTierUndef &&
+            (minSTier < kKfsSTierMin || kKfsSTierMax < minSTier)) ||
+            (maxSTier != kKfsSTierUndef &&
+                (maxSTier < kKfsSTierMin || kKfsSTierMax < maxSTier)))) {
+        return -EINVAL;
+    }
+    if (minSTier != kKfsSTierUndef) {
+        fa->minSTier = minSTier;
+        if (fa->maxSTier < minSTier) {
+            fa->maxSTier = minSTier;
+        }
+    }
+    if (maxSTier != kKfsSTierUndef) {
+        fa->maxSTier = maxSTier;
+        if (maxSTier < fa->minSTier) {
+            fa->minSTier = maxSTier;
+        }
+    }
+    // For now storage tiers change has no effect on the chunks that were
+    // previously allocated.
+    if (numReplicas <= 0) {
+        return ((maxSTier != kKfsSTierUndef || maxSTier != kKfsSTierUndef) ?
+            0 : -EINVAL);
     }
     if (fa->numReplicas == numReplicas) {
         return 0;
