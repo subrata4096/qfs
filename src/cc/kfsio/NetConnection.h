@@ -76,6 +76,7 @@ public:
           mListenOnly(listenOnly),
           mOwnsSocket(ownsSocket),
           mTryWrite(false),
+          mPendingStartFlush(false),
           mCallbackObj(c),
           mSock(sock),
           mInBuffer(),
@@ -229,6 +230,7 @@ public:
 
     /// If there is any data to be sent out, start the send.
     void StartFlush() {
+        mPendingStartFlush = false;
         if (CanStartFlush()) {
             HandleWriteEvent();
         }
@@ -363,11 +365,17 @@ public:
     KfsCallbackObj* GetCallback() const {
         return mCallbackObj;
     }
+    bool SetPendingStartFlush() {
+        const bool prev = mPendingStartFlush;
+        mPendingStartFlush = CanStartFlush();
+        return (! prev && mPendingStartFlush);
+    }
 private:
     NetManagerEntry mNetManagerEntry;
     const bool      mListenOnly:1;
     const bool      mOwnsSocket:1;
     bool            mTryWrite:1;
+    bool            mPendingStartFlush:1;
     /// KfsCallbackObj that will be notified whenever "events" occur.
     KfsCallbackObj* mCallbackObj;
     /// Socket on which I/O will be done.

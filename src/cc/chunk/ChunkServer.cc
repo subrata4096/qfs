@@ -68,7 +68,8 @@ public:
           mCurEnqueueQueue(),
           mCurDoneQueue(),
           mCurRemoveQueue(),
-          mPendingFlush()
+          mPendingFlush(),
+          mCurPendingFlush()
     {
         mAddQueue.reserve(4 << 10);
         mNetReadQueue.reserve(4 << 10);
@@ -196,11 +197,7 @@ private:
     typedef vector<pair<RemoteSyncSMPtr, KfsOp*> > OpEnqueueQueue;
     typedef vector<pair<ClientSM*,       KfsOp*> > OpDoneQueue;
     typedef vector<RemoteSyncSMPtr>                RemoveQueue;
-    typedef set<
-        NetConnectionPtr,
-        less<NetConnectionPtr>,
-        StdFastAllocator<NetConnectionPtr>
-    > PendingFlush;
+    typedef vector<NetConnectionPtr>               PendingFlush;
 
     NetThread*     mNext;
     QCThread       mThread;
@@ -217,6 +214,7 @@ private:
     OpDoneQueue    mCurDoneQueue;
     RemoveQueue    mCurRemoveQueue;
     PendingFlush   mPendingFlush;
+    PendingFlush   mCurPendingFlush;
 
     static NetThread* sCurThread;
 
@@ -254,11 +252,14 @@ private:
     }
     void StartFlushSelf(const NetConnectionPtr& connection)
     {
+        if (! connection->SetPendingStartFlush()) {
+            return;
+        }
         // Wakeup isn't strictly required in most cases, as the timers run
         // before the net manager invokes poll. It is here to handle the
         // corner case where flush is invoked from another timer.
         const bool wakeupFlag = mPendingFlush.empty();
-        mPendingFlush.insert(connection);
+        mPendingFlush.push_back(connection);
         if (wakeupFlag) {
             mNetManager.Wakeup();
         }
@@ -317,6 +318,10 @@ private:
             }
             mCurNetReadQueue.clear();
 
+            processedFlag = processedFlag || mPendingFlush.empty();
+            assert(mCurPendingFlush.empty());
+            mCurPendingFlush.swap(mPendingFlush);
+
             processedFlag = processedFlag || ! mAddQueue.empty();
             assert(mCurAddQueue.empty());
             mCurAddQueue.swap(mAddQueue);
@@ -330,14 +335,13 @@ private:
 
         // Run pending flush queue with no mutex held to do network io in
         // parallel with other threads.
-        processedFlag = processedFlag || mPendingFlush.empty();
-        PendingFlush curPendingFlush;
-        curPendingFlush.swap(mPendingFlush);
-        for (PendingFlush::const_iterator it = curPendingFlush.begin();
-                it != curPendingFlush.end();
+        for (PendingFlush::const_iterator it = mCurPendingFlush.begin();
+                it != mCurPendingFlush.end();
                 ++it) {
             (*it)->StartFlush();
         }
+        mCurPendingFlush.clear();
+
         return processedFlag;
     }
 };

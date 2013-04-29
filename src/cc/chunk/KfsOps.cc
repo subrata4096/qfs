@@ -1789,11 +1789,13 @@ WritePrepareOp::Execute()
             Done(EVENT_CMD_DONE, this);
             return;
         }
+        writeOp->dataBuf.Copy(&dataBuf, numBytes);
+    } else {
+        writeOp->dataBuf.Move(&dataBuf);
     }
 
-    writeOp->offset = offset;
+    writeOp->offset   = offset;
     writeOp->numBytes = numBytes;
-    writeOp->dataBuf.Move(&dataBuf);
     writeOp->wpop = this;
     writeOp->checksums.swap(checksums);
 

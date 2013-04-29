@@ -353,6 +353,9 @@ ClientSM::HandleRequest(int code, void* data)
     case EVENT_CMD_DONE: {
         KfsOp* op = reinterpret_cast<KfsOp*>(data);
         if (gChunkServer.CmdDone(*this, op)) {
+            CLIENT_SM_LOG_STREAM_DEBUG <<
+                "enqueued op: " << KfsOp::ShowOp(op) <<
+            KFS_LOG_EOM;
             mRecursionCnt--;
             return 0;
         }
