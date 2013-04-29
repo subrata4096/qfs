@@ -318,7 +318,7 @@ private:
             }
             mCurNetReadQueue.clear();
 
-            processedFlag = processedFlag || mPendingFlush.empty();
+            processedFlag = processedFlag || ! mPendingFlush.empty();
             assert(mCurPendingFlush.empty());
             mCurPendingFlush.swap(mPendingFlush);
 
