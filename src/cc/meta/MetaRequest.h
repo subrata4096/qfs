@@ -1129,12 +1129,14 @@ struct MetaChangeFileReplication: public MetaRequest {
     int16_t    numReplicas; //!< desired degree of replication
     kfsSTier_t minSTier;
     kfsSTier_t maxSTier;
+    bool       logFlag;
     MetaChangeFileReplication()
         : MetaRequest(META_CHANGE_FILE_REPLICATION, true),
           fid(-1),
           numReplicas(1),
           minSTier(kKfsSTierUndef),
-          maxSTier(kKfsSTierUndef)
+          maxSTier(kKfsSTierUndef),
+          logFlag(false)
         {}
     virtual void handle();
     virtual int log(ostream &file) const;
@@ -1145,8 +1147,8 @@ struct MetaChangeFileReplication: public MetaRequest {
             "change-file-replication:"
             " fid: "      << fid <<
             " replicas: " << numReplicas <<
-            " minstier: " << minSTier <<
-            " maxstier: " << maxSTier
+            " min-tier: " << (int)minSTier <<
+            " max-tier: " << (int)maxSTier
         ;
     }
     bool Validate()
