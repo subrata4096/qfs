@@ -17,31 +17,35 @@
 
 package com.quantcast.qfs.hadoop;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.NoSuchElementException;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.mapred.Counters;
 
 import com.quantcast.qfs.access.KfsAccess;
 import com.quantcast.qfs.access.KfsFileAttr;
 
-import java.util.ArrayList;
-
 class QFSImpl implements IFSImpl {
   protected KfsAccess kfsAccess = null;
-  private FileSystem.Statistics statistics;
+  protected FileSystem.Statistics statistics;
+  protected Configuration config;
   private final long BLOCK_SIZE  = 1 << 26;
   private final long ACCESS_TIME = 0;
 
   public QFSImpl(String metaServerHost, int metaServerPort,
-                 FileSystem.Statistics stats) throws IOException {
+                 FileSystem.Statistics stats, Configuration conf) throws IOException {
     kfsAccess = new KfsAccess(metaServerHost, metaServerPort);
     statistics = stats;
+    config = conf;
   }
 
   public boolean exists(String path) throws IOException {
@@ -236,12 +240,20 @@ class QFSImpl implements IFSImpl {
   protected QFSOutputStream createQFSOutputStream(KfsAccess kfsAccess, String path,
                                                   short replication, boolean overwrite,
                                                   boolean append, int mode) throws IOException {
-    return new QFSOutputStream(kfsAccess, path, replication, overwrite, append, mode);
+    boolean doCounters = config.getBoolean("fs.qfs.optional.use.counters", false);
+    boolean doTracking = config.getBoolean("fs.qfs.optional.track.files", false);
+    return (doCounters || doTracking) ?
+        new TrackingQFSOutputStream(kfsAccess, path, replication, overwrite, append, mode, config) :
+        new QFSOutputStream(kfsAccess, path, replication, overwrite, append, mode);
   }
 
   protected QFSInputStream createQFSInputStream(KfsAccess kfsAccess, String path,
                                                 FileSystem.Statistics stats) throws IOException {
-    return new QFSInputStream(kfsAccess, path, stats);
+    boolean doCounters = config.getBoolean("fs.qfs.optional.use.counters", false);
+    boolean doTracking = config.getBoolean("fs.qfs.optional.track.files", false);
+    return (doCounters || doTracking) ?
+        new TrackingQFSInputStream(kfsAccess, path, stats, config) :
+        new QFSInputStream(kfsAccess, path, stats);
   }
 
   public CloseableIterator<FileStatus> getFileStatusIterator(FileSystem fs, Path path)

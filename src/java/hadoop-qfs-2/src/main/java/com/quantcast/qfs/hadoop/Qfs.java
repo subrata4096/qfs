@@ -18,42 +18,31 @@
 
 package com.quantcast.qfs.hadoop;
 
-import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.ArrayList;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.AbstractFileSystem;
 import org.apache.hadoop.fs.BlockLocation;
-import org.apache.hadoop.fs.ContentSummary;
+import org.apache.hadoop.fs.CreateFlag;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileUtil;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.CreateFlag;
-import org.apache.hadoop.fs.FileSystem.Statistics;
-import org.apache.hadoop.fs.Options.ChecksumOpt;
-import org.apache.hadoop.fs.Options.CreateOpts;
-import org.apache.hadoop.fs.Options.Rename;
-import org.apache.hadoop.fs.InvalidPathException;
-import org.apache.hadoop.fs.UnresolvedLinkException;
 import org.apache.hadoop.fs.FileChecksum;
-import org.apache.hadoop.fs.FsStatus;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FsServerDefaults;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.fs.AbstractFileSystem;
-import org.apache.hadoop.util.Progressable;
-import org.apache.hadoop.util.DataChecksum;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.fs.FsStatus;
+import org.apache.hadoop.fs.Options.ChecksumOpt;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.UnresolvedLinkException;
 import org.apache.hadoop.fs.local.LocalConfigKeys;
-
-import com.quantcast.qfs.access.KfsFileAttr;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.util.Progressable;
 
 public class Qfs extends AbstractFileSystem {
 
@@ -76,11 +65,11 @@ public class Qfs extends AbstractFileSystem {
       this.qfsImpl = new QFSImpl(
         conf.get("fs.qfs.metaServerHost", ""),
         conf.getInt("fs.qfs.metaServerPort", -1),
-        getStatistics()
+        getStatistics(), conf
       );
     } else {
       this.qfsImpl = new QFSImpl(
-        uri.getHost(), uri.getPort(), getStatistics());
+        uri.getHost(), uri.getPort(), getStatistics(), conf);
     }
     this.qfs = new QuantcastFileSystem(this.qfsImpl, uri);
   }

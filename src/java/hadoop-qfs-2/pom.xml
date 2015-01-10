@@ -75,6 +75,12 @@ permissions and limitations under the License.
           <scope>compile</scope>
         </dependency>
         <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-mapreduce-client-core</artifactId>
+          <version>${hadoop.release.version}</version>
+          <scope>compile</scope>
+        </dependency>
+        <dependency>
           <groupId>com.quantcast.qfs</groupId>
           <artifactId>qfs-access</artifactId>
           <version>1.0.0</version>

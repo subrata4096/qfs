@@ -23,7 +23,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.lang.Math;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.BlockLocation;
@@ -35,6 +34,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
 
@@ -68,9 +68,9 @@ public class QuantcastFileSystem extends FileSystem {
         if (uri.getHost() == null) {
           qfsImpl = createIFSImpl(conf.get("fs.qfs.metaServerHost", ""),
                                 conf.getInt("fs.qfs.metaServerPort", -1),
-                                statistics);
+                                statistics, conf);
         } else {
-          qfsImpl = createIFSImpl(uri.getHost(), uri.getPort(), statistics);
+          qfsImpl = createIFSImpl(uri.getHost(), uri.getPort(), statistics, conf);
         }
       }
 
@@ -87,8 +87,10 @@ public class QuantcastFileSystem extends FileSystem {
   }
 
   protected IFSImpl createIFSImpl(String metaServerHost, int metaServerPort,
-                               FileSystem.Statistics stats) throws IOException {
-    return new QFSImpl(metaServerHost, metaServerPort, stats);
+                               FileSystem.Statistics stats, Configuration conf) throws IOException {
+    boolean doCounters = conf.getBoolean("fs.qfs.optional.use.counters", false);
+    return (doCounters) ? new CounterQFSImpl(metaServerHost, metaServerPort, stats, conf) :
+      new QFSImpl(metaServerHost, metaServerPort, stats, conf);
   }
 
   public Path getWorkingDirectory() {
@@ -422,6 +424,10 @@ public class QuantcastFileSystem extends FileSystem {
 
   public Token<?> getDelegationToken(String renewer) throws IOException {
     return null;
+  }
+
+  public static void updateOptionalCounters(Counters counters) {
+    OptionalCounters.updateCounters(counters);
   }
 
   // The following two methods are needed to compile Qfs.java with hadoop 0.23.x
