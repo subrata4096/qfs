@@ -253,7 +253,8 @@ def parse_command_line():
     defaultSrcDir = os.path.join(argv0Dir, '../..')
     defaultSrcDir = os.path.abspath(defaultSrcDir)
 
-    defaultRelDir = os.path.join(argv0Dir, '../../build/release')
+    #defaultRelDir = os.path.join(argv0Dir, '../../build/release')
+    defaultRelDir = os.path.join(argv0Dir, '../../build/debug')
     defaultRelDir = os.path.abspath(defaultRelDir)
 
     if not os.path.exists(defaultRelDir):
@@ -516,6 +517,9 @@ def setup_config_files(config, authFlag):
     print >> metaFile, 'metaServer.cpDir = %s/checkpoints' % metaRunDir
     print >> metaFile, 'metaServer.logDir = %s/logs' % metaRunDir
     print >> metaFile, 'metaServer.recoveryInterval = 1'
+    #subrata: add start
+    print >> metaFile, 'metaServer.serverDownReplicationDelay = 15'
+    #subrata: add end
     print >> metaFile, 'metaServer.msgLogWriter.logLevel = DEBUG'
     print >> metaFile, 'metaServer.msgLogWriter.maxLogFileSize = 1e6'
     print >> metaFile, 'metaServer.msgLogWriter.maxLogFiles = 10'
@@ -562,7 +566,7 @@ def setup_config_files(config, authFlag):
                 print >> chunkFile, 'chunkServer.msgLogWriter.maxLogFileSize = 1e6'
                 print >> chunkFile, 'chunkServer.msgLogWriter.maxLogFiles = 2'
                 print >> chunkFile, 'chunkServer.pidFile = %s/chunkserver.pid' % chunkRunDir
-                print >> chunkFile, 'chunkServer.clientThreadCount = 3'
+                print >> chunkFile, 'chunkServer.clientThreadCount = 0'
                 if authFlag:
                     print >> chunkFile, 'chunkserver.meta.auth.X509.X509PemFile = %s/chunk%d.crt' % (certsDir, chunkClientPort)
                     print >> chunkFile, 'chunkserver.meta.auth.X509.PKeyPemFile = %s/chunk%d.key' % (certsDir, chunkClientPort)
@@ -640,6 +644,7 @@ def start_servers(config, whichServers, createNewFsFlag, authFlag):
                                         shell_quote(metaConf),
                                         shell_quote(metaLog),
                                         shell_quote(metaOut))
+		print command
                 if run_command(command) > 0:
                     print '*** metaserver failed to start'
                     errors = errors + 1
@@ -662,6 +667,7 @@ def start_servers(config, whichServers, createNewFsFlag, authFlag):
                                             shell_quote(chunkConf),
                                             shell_quote(chunkLog),
                                             shell_quote(chunkOut))
+		    print command
                     if run_command(command) > 0:
                         print '*** chunkserver failed to start'
                         errors = errors + 1
