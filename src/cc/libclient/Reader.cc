@@ -827,6 +827,9 @@ private:
         }
         void StartReadSelf()
         {
+	    //subrata add
+            KFS_LOG_STREAM_ERROR << "subrata: StartReadSelf  Ptr this = " << this << KFS_LOG_EOM;
+        //subrata end
             if (mSleepingFlag) {
                 return;
             }
@@ -887,6 +890,11 @@ private:
         }
         void Read()
         {
+             //subrata add
+          #include <sys/types.h>
+          pid_t thread_id = getpid();
+              KFS_LOG_STREAM_ERROR << "subrata: Read() (line 896) called. process id = " << thread_id << " Ptr this = " << this << " chunkId = " << mGetAllocOp.chunkId << KFS_LOG_EOM;
+          //subrata end
             if (mLeaseAcquireOp.leaseId < 0 ||
                     mLeaseAcquireOp.chunkId != mGetAllocOp.chunkId ||
                     mLeaseExpireTime <= Now()) {

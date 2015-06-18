@@ -1777,9 +1777,11 @@ ChunkServer::Enqueue(MetaChunkRequest* r, int timeout /* = -1 */)
     if (r->op == META_CHUNK_REPLICATE) {
         KFS_LOG_STREAM_INFO << r->Show() << KFS_LOG_EOM;
     }
+    //subratra : "r" contains all the info that chunk server needs to know to repair missing chunks
     EnqueueSelf(r);
 }
 
+//subrata: This is how the repair/replication instruction is being transferred to chunkservers over network...
 void
 ChunkServer::EnqueueSelf(MetaChunkRequest* r)
 {

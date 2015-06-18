@@ -577,6 +577,7 @@ ChunkLeases::ServerDown(
     ARAChunkCache&        arac,
     CSMap&                csmap)
 {
+    KFS_LOG_STREAM_ERROR << "subrata: LayoutManager.c:580 :: ChunkLeases::ServerDown" << KFS_LOG_EOM; 
     mWriteLeases.First();
     const WEntry* entry;
     while ((entry = mWriteLeases.Next())) {
@@ -4120,6 +4121,7 @@ LayoutManager::ServerDown(const ChunkServerPtr& server)
     if (! server->IsDown()) {
         server->ForceDown();
     }
+    KFS_LOG_STREAM_ERROR << "subrata: LayoutManager.c:4123 :: ServerDown" << KFS_LOG_EOM; 
     const bool validFlag = mChunkToServerMap.Validate(server);
     Servers::const_iterator const i = FindServer(server->GetServerLocation());
     if (validFlag != (i != mChunkServers.end() && *i == server)) {
@@ -5892,6 +5894,7 @@ LayoutManager::LeaseRenew(MetaLeaseRenew* req)
 void
 LayoutManager::ChunkCorrupt(MetaChunkCorrupt *r)
 {
+    KFS_LOG_STREAM_ERROR << "subrata: " << "LayoutManager.c:5897 :: " << "ChunkCorrupt" << KFS_LOG_EOM; 
     if (! r->isChunkLost) {
         r->server->IncCorruptChunks();
     }
@@ -5908,6 +5911,7 @@ void
 LayoutManager::ChunkCorrupt(chunkId_t chunkId, const ChunkServerPtr& server,
         bool notifyStale)
 {
+    KFS_LOG_STREAM_ERROR << "subrata: " << "LayoutManager.c:5913 :: " << "ChunkCorrupt" << KFS_LOG_EOM; 
     CSMap::Entry* const ci = mChunkToServerMap.Find(chunkId);
     if (! ci) {
         return;
@@ -8006,6 +8010,8 @@ LayoutManager::ReplicateChunk(
     LayoutManager::ChunkPlacement& placement,
     const ChunkRecoveryInfo&       recoveryInfo)
 {
+
+   KFS_LOG_STREAM_ERROR << "subrata: LayoutManager::ReplicateChunk: 8014 " << " extraReplicas = " << extraReplicas << KFS_LOG_EOM;
     if (extraReplicas <= 0) {
         return 0;
     }

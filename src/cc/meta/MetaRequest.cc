@@ -5036,6 +5036,8 @@ static const string sReplicateCmdName("REPLICATE");
 void
 MetaChunkReplicate::request(ostream& os)
 {
+    //subrata: this function creates a protocol message on metaserver and sends to chunk servers over a network socket....
+
     // OK to use global here as chunk server state machine runs in the main
     // thread.
     ostringstream& rs = GetTmpOStringStream();
@@ -5062,6 +5064,7 @@ MetaChunkReplicate::request(ostream& os)
             rs << "File-size: " << fileSize << "\r\n";
         }
     } else {
+        //subrata: Note: For RS (Reed-Solomon) source location is not specified
         rs << "Chunk-location: " << srcLocation << "\r\n";
     }
     if (0 < validForTime) {
@@ -5120,6 +5123,8 @@ MetaChunkReplicate::request(ostream& os)
     }
     rs << "\r\n";
     const string req = rs.str();
+    //subrata : the replication command is "REPLICATE"
+    KFS_LOG_STREAM_ERROR << "subrata: metaserver is about to send replication instruiction to chunkserver from meta/MetaRequest.cc line 5126" << KFS_LOG_EOM; 
     os << sReplicateCmdName << " " << Checksum(
         sReplicateCmdName.data(),
         sReplicateCmdName.size(),

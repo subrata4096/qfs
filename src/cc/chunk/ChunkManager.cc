@@ -3550,6 +3550,12 @@ ChunkManager::GetDirName(chunkId_t chunkId) const
 int
 ChunkManager::ReadChunk(ReadOp* op)
 {
+      //subrata add
+      #include <sys/types.h>
+     pid_t procId = getpid();
+
+    KFS_LOG_STREAM_ERROR << "subrata: ChunkManager::ReadChunk() : for chunkId = " << op->chunkId << " on process-id = " << procId << KFS_LOG_EOM;
+    //subrata end
     ChunkInfoHandle* cih = 0;
     if (GetChunkInfoHandle(op->chunkId, &cih) < 0) {
         return -EBADF;

@@ -777,11 +777,13 @@ private:
     bool ComputeRecovery(
         int* ioPaddSizeWriteFrontTrimPtr = 0)
     {
+         KFS_LOG_STREAM_ERROR << "subrata: ComputeRecovery function in libclient/RSStriper.cc was called " << KFS_LOG_EOM;
         if (mRecoveryStripeCount <= 0) {
             for (int i = 0; i < mStripeCount; i++) {
                 mBuffersPtr[i].mWriteLen =
                     mBuffersPtr[i].mBuffer.BytesConsumable();
             }
+         KFS_LOG_STREAM_ERROR << "subrata: in line 786 of ComputeRecovery" << KFS_LOG_EOM;
             mRecoveryEndPos = mOffset;
             return true;
         }
@@ -799,6 +801,7 @@ private:
         const int theSize       = theTotalSize / mStripeCount;
         QCASSERT(theSize * mStripeCount == theTotalSize);
         Offset thePendingCount = 0;
+        KFS_LOG_STREAM_ERROR << "subrata: in line 804 of ComputeRecovery" << KFS_LOG_EOM;
         for (int i = mStripeCount;
                 i < mStripeCount + mRecoveryStripeCount;
                 i++) {
@@ -2627,6 +2630,11 @@ private:
     }
     void Read()
     {
+	//subrata add
+	#include <sys/types.h>
+        pid_t thread_id = getpid();
+	KFS_LOG_STREAM_ERROR << "subrata: Read() call from process id = " <<  thread_id << KFS_LOG_EOM;
+	//subrata end
         Request* thePtr;
         while((thePtr = Requests::PopFront(mPendingQueue))) {
             Requests::PushBack(mInFlightList, *thePtr);
@@ -2639,6 +2647,9 @@ private:
         Offset    inChunkOffset,
         RequestId inRequestId)
     {
+
+	KFS_LOG_STREAM_ERROR << "subrata: RecoverChunk : mRecoverStripeIdx = " << mRecoverStripeIdx << " and mRecoverBlockPos = " << mRecoverBlockPos << " and inChunkOffset = " << inChunkOffset << KFS_LOG_EOM;
+
         QCASSERT(
             mRecoverStripeIdx >= 0 &&
             mRecoverStripeIdx < mStripeCount + mRecoveryStripeCount &&
@@ -2649,7 +2660,7 @@ private:
                 inLength > mMaxReadSize || inLength <= 0 ||
                 (inLength > mStripeSize && (inLength % mStripeSize != 0 ||
                     inChunkOffset % mStripeSize != 0)) ||
-                inBuffer.begin() != inBuffer.end()) {
+                inBuffer.begin() != inBuffer.end()) {   //subrata: This line indicates that the "inBuffer" is expected to be empty. So this is trying to submit the req
             return kErrorParameters;
         }
         SetPos(
@@ -2674,8 +2685,10 @@ private:
             }
             theRequest.mPendingCount = theRequest.mSize;
         } else {
+ 
             const int theStripeToReadIdx =
                 mRecoverStripeIdx < mStripeCount ? mRecoverStripeIdx : 0;
+	    KFS_LOG_STREAM_ERROR << "subrata: am I on line 2685 (else of RecoverChunk) ? theStripeToReadIdx = " << theStripeToReadIdx << KFS_LOG_EOM;
             Buffer& theBuf = theRequest.GetBuffer(theStripeToReadIdx);
             theBuf.mBuf.mSize = inLength;
             theBuf.mPos       = GetFilePos();

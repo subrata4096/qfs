@@ -1390,6 +1390,8 @@ private:
     }
     void HandleRead()
     {
+
+	KFS_LOG_STREAM_ERROR << "subrata: HandleRead : the mOwner = " << mOwner << KFS_LOG_EOM;
         if (mCancelFlag || ! mOwner || mReadInFlightFlag) {
             FatalError("invalid handle read invocation");
             return;
@@ -1881,6 +1883,7 @@ Replicator::Run(ReplicateChunkOp* op)
             KFS_LOG_EOM;
             ReplicatorImpl::Ctrs().mRecoveryErrorCount++;
         } else {
+            KFS_LOG_STREAM_ERROR << "subrata: we have come to line 1884 of Replicator.cc and about to call RSReplicatorImpl::Create" << KFS_LOG_EOM; 
             impl = RSReplicatorImpl::Create(op, token, tokenLen, key, keyLen);
         }
     }

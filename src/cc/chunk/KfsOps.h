@@ -733,6 +733,8 @@ struct TruncateChunkOp : public KfsOp {
     }
 };
 
+//subrata : this is important code on the chunk server side..  It probably does Reed-Solomon repair as well
+
 // Op for replicating the chunk.  The metaserver is asking this
 // chunkserver to create a copy of a chunk.  We replicate the chunk
 // and then notify the server upon completion.
