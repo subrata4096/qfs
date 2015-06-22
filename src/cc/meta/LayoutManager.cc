@@ -8003,6 +8003,47 @@ LayoutManager::IsChunkStable(chunkId_t chunkId)
     return (mNonStableChunks.find(chunkId) == mNonStableChunks.end());
 }
 
+int LayoutManager::scheduleRepilcationNew(
+ CSMap::Entry&                  clli,
+     int                            extraReplicas,
+     const ChunkRecoveryInfo&       recoveryInfo,
+      const vector<kfsSTier_t>&     tiers,
+     kfsSTier_t                    maxSTier,
+     int numDone,
+     ChunkServerPtr theChosenServer)
+ {
+          //subrata: I am writing this function for testing
+
+	 FileRecoveryInFlightCount::iterator recovIt =
+              mFileRecoveryInFlightCount.end();
+          // Bump counters here, completion can be invoked
+          // immediately, for example when send fails.
+
+     vector<kfsSTier_t>::const_iterator ti = tiers.begin();
+         const kfsSTier_t      tier = ti != tiers.end() ? *ti : kKfsSTierUndef;
+
+          mNumOngoingReplications++;
+          mOngoingReplicationStats->Update(1);
+          mTotalReplicationStats->Update(1);
+          const CSMap::Entry::State replicationState =
+              mChunkToServerMap.GetState(clli);
+          if (replicationState == CSMap::Entry::kStateNone ||
+                  replicationState ==
+                  CSMap::Entry::kStateCheckReplication) {
+              SetReplicationState(clli,
+                  CSMap::Entry::kStatePendingReplication);
+          }
+          ChunkServer& cs = *theChosenServer;
+          // Do not count synchronous failures.
+          if (cs.ReplicateChunk(clli.GetFileId(), clli.GetChunkId(),
+                  theChosenServer, recoveryInfo, tier, maxSTier, recovIt) == 0 &&
+                  ! cs.IsDown()) {
+              numDone++;
+          }
+          return numDone;
+          //subrata: end function
+}
+
 int
 LayoutManager::ReplicateChunk(
     CSMap::Entry&                  clli,
@@ -8050,13 +8091,18 @@ LayoutManager::ReplicateChunk(
     Servers&                   candidates = serversTmp.Get();
     StTmp<vector<kfsSTier_t> > tiersTmp(mPlacementTiersTmp);
     vector<kfsSTier_t>&        tiers = tiersTmp.Get();
+     ChunkServerPtr myCS;
     for (int rem = extraReplicas; ;) {
         const size_t psz = candidates.size();
         for (size_t i = 0; ; ) {
-            const ChunkServerPtr cs = placement.GetNext(useServerExcludesFlag);
+            ChunkServerPtr cs = placement.GetNext(useServerExcludesFlag);
             if (! cs) {
                 break;
             }
+            //subrata: start
+            myCS = cs;
+            break;
+            //subrata end
             if (placement.IsUsingServerExcludes() && (
                     find(candidates.begin(), candidates.end(), cs) !=
                         candidates.end() ||
@@ -8086,8 +8132,16 @@ LayoutManager::ReplicateChunk(
         KFS_LOG_EOM;
         return 0;
     }
+    //subrata add
+    //int numDone = 0;
+    //ChunkServerPtr theFirstOne = myCS;
+    //return scheduleRepilcationNew(clli, extraReplicas, recoveryInfo,
+    //      tiers, maxSTier, numDone, theFirstOne);
     return ReplicateChunk(clli, extraReplicas, candidates, recoveryInfo,
-        tiers, maxSTier);
+     tiers, maxSTier);
+    //subrata end
+    //return ReplicateChunk(clli, extraReplicas, candidates, recoveryInfo,
+       // tiers, maxSTier);
 }
 
 int
@@ -8148,20 +8202,20 @@ LayoutManager::ReplicateChunk(
         // has read b/w available
         for (Servers::const_iterator si = servers.begin();
                 ! dataServer && si != servers.end();
-                ++si) {
+                ++si) {                                        //subrata: this loop bound is suspecious. Is it trying to get the lats server ? why not break after the first?
             ChunkServer& ss = **si;
             if (ss.GetReplicationReadLoad() >=
                     mMaxConcurrentReadReplicationsPerNode ||
                     ! ss.IsResponsiveServer()) {
                 continue;
             }
-            dataServer = *si;
+            dataServer = *si;              //subrata: why not chek and break here?
         }
         if (! dataServer) {
             continue;
         }
         KFS_LOG_STREAM_INFO <<
-            "starting re-replication:"
+            "starting re-replication:"       
             " chunk: "  << clli.GetChunkId() <<
             " from: "   <<
                 dataServer->GetServerLocation() <<

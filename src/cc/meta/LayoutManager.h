@@ -2139,7 +2139,14 @@ protected:
         const vector<kfsSTier_t>& tiers,
         kfsSTier_t                maxSTier,
         const char*               reasonMsg = 0);
-
+    int scheduleRepilcationNew(
+   CSMap::Entry&                  clli,
+       int                            extraReplicas,
+       const ChunkRecoveryInfo&       recoveryInfo,
+       const vector<kfsSTier_t>& tiers,
+        kfsSTier_t                maxSTier,
+       int numDone,
+       ChunkServerPtr theChosenServer);
     /// From the candidates, handout work to nodes.  If any chunks are
     /// over-replicated/chunk is deleted from system, add them to delset.
     bool HandoutChunkReplicationWork();
