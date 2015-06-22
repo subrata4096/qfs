@@ -8077,7 +8077,7 @@ LayoutManager::ReplicateChunk(
             break;
         }
     }
-    if (candidates.empty()) {
+    if (candidates.empty()) {   //subrata: look at this code... this is important
         KFS_LOG_STREAM_WARN <<
             "can not find replication destination for: <" <<
             clli.GetFileId() << "," << clli.GetChunkId() <<
@@ -8107,7 +8107,7 @@ LayoutManager::ReplicateChunk(
     mChunkToServerMap.GetServers(clli, servers);
     Servers::const_iterator const iter = find_if(
         servers.begin(), servers.end(),
-        bind(&ChunkServer::IsEvacuationScheduled, _1, clli.GetChunkId())
+        bind(&ChunkServer::IsEvacuationScheduled, _1, clli.GetChunkId())   //subrata: get list of all servers that are being evacuated and this chunk is hosted on those
     );
     vector<kfsSTier_t>::const_iterator ti = tiers.begin();
     int numDone = 0;
@@ -8119,7 +8119,7 @@ LayoutManager::ReplicateChunk(
         const kfsSTier_t      tier = ti != tiers.end() ? *ti : kKfsSTierUndef;
         // verify that we got good candidates
         if (find(servers.begin(), servers.end(), c) != servers.end()) {
-            panic("invalid replication candidate");
+            panic("invalid replication candidate");                           //subrata: the chosen candidate must not be within those servers (ideally). otherwise there will be 2chunks in one server 
         }
         if (cs.IsDown()) {
             continue;

@@ -2366,6 +2366,9 @@ private:
                 Buffer& theBuf = inRequest.GetBuffer(i);
                 if (theBuf.IsFailed()) {
                     mMissingIdx[mMissingCnt++] = i;
+                    //subrata : start
+                      KFS_LOG_STREAM_ERROR << "subrata: confused! what is in RequestInfo::Set() ? in mMissingIdx ? mMissingIdx[" << mMissingCnt << "] = " << i << KFS_LOG_EOM;
+               //subrata: end
                 }
             }
             if (mMissingCnt <= 0) {
@@ -2416,6 +2419,7 @@ private:
             // Randomly select which stripes to use for RS recovery in order to
             // attempt to uniformly distribute the chunk server read load.
             while (theMissingCnt < theMaxMissingCnt) {
+		//subrata: is this how the source chunks are being selected ? Randomly for uniform load ? 
                 int theIdx = inOuter.Rand() % (theCnt - theMissingCnt);
                 int i;
                 for (i = 0; i < theMissingCnt; i++) {
@@ -2427,6 +2431,7 @@ private:
                         }
                     }
                     // Insertion sort.
+                    //Subrata: what is this insertion sort for ?
                     if (theIdx < theMissingIdx[i]) {
                         for (int k = theMissingCnt; i < k; k--) {
                             theMissingIdx[k] = theMissingIdx[k - 1];
@@ -2447,6 +2452,9 @@ private:
             for (int i = 0; i < theMaxMissingCnt; i++) {
                 if (theSkipStripeIdx != theMissingIdx[i]) {
                     mMissingIdx[mMissingCnt++] = theMissingIdx[i];
+            	   //subrata: start
+                      KFS_LOG_STREAM_ERROR << "subrata: what is in RequestInfo:SetIfEmpty() being inserted in mMissingIdx ? is this selecting sources ? mMissingIdx[" << mMissingCnt << "] = theMissingIdx[" << i << "] = " << theMissingIdx[i] << KFS_LOG_EOM;
+                   //subrata: end 
                 }
             }
         }
@@ -2470,6 +2478,10 @@ private:
             const int theBufCount = inOuter.GetBufferCount();
             int i;
             for (i = 0; ; i++) {
+
+               //subrata : start
+                      KFS_LOG_STREAM_ERROR << "subrata: and in RequestInfo::Get() ? in mMissingIdx ? mMissingIdx[" << i << "] = " << mMissingIdx[i] << KFS_LOG_EOM;
+               //subrata: end
                 const int theIdx = i < mMissingCnt ?
                     mMissingIdx[i] : inOuter.mStripeCount;
                 QCASSERT(theIdx >= 0);
@@ -2673,8 +2685,11 @@ private:
         Request& theRequest = GetRequest(inRequestId, GetPos(), 0);
         theRequest.mRecoverySize = -inLength;
         theRequest.mRecoveryPos  = GetChunkBlockStartFilePos() + inChunkOffset;
+
+        //subrata: what is this "SetIfEmpty" doing ? From its code (line 2377) it looks like an interesting function to explore.. 
         mRecoveryInfo.SetIfEmpty(*this, theRequest.mPos, mRecoverStripeIdx);
-        Offset thePos = theRequest.mRecoveryPos;
+        
+	Offset thePos = theRequest.mRecoveryPos;
         if (mStripeSize < inLength) {
             for (int i = 0; i < mStripeCount; i++) {
                 Buffer& theBuf = theRequest.GetBuffer(i);

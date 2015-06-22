@@ -526,6 +526,7 @@ public:
         seq_t fromVersion, bool makeStableFlag, bool pendingAddFlag = false,
         MetaChunkReplicate* replicate = 0);
 
+public: 
     /// Accessor method to get the host name/port
     const ServerLocation& GetServerLocation() const {
         return mLocation;

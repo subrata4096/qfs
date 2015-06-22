@@ -584,6 +584,9 @@ private:
                 mRestartStartReadFlag = true;
                 return;
             }
+
+	    KFS_LOG_STREAM_ERROR << "subrata:  StartRead() chunk-id going to read = " << mGetAllocOp.chunkId << " file-offset = " << mGetAllocOp.fileOffset << KFS_LOG_EOM;          
+
             mStartReadRunningFlag = true;
             QCStDeleteNotifier theDeleteNotifier(mDeletedFlagPtr);
             do {
@@ -828,7 +831,7 @@ private:
         void StartReadSelf()
         {
 	    //subrata add
-            KFS_LOG_STREAM_ERROR << "subrata: StartReadSelf  Ptr this = " << this << KFS_LOG_EOM;
+            KFS_LOG_STREAM_ERROR << "subrata: StartReadSelf  Ptr this = " << this <<" and the chunk-id going to read from is = " << mGetAllocOp.chunkId << KFS_LOG_EOM;
         //subrata end
             if (mSleepingFlag) {
                 return;
@@ -879,7 +882,7 @@ private:
             // this.
             // Other methods of this class have to return immediately (unwind)
             // after invoking Read().
-            if (mGetAllocOp.chunkId > 0) {
+            if (mGetAllocOp.chunkId > 0) {               //subrata: at this point we already have the chunk-id. From where was it assigned??
                 Read();
             } else if (mGetAllocOp.status == kErrorNoEntry) {
                 Done(mGetAllocOp, false, 0);
@@ -894,7 +897,11 @@ private:
           #include <sys/types.h>
           pid_t thread_id = getpid();
               KFS_LOG_STREAM_ERROR << "subrata: Read() (line 896) called. process id = " << thread_id << " Ptr this = " << this << " chunkId = " << mGetAllocOp.chunkId << KFS_LOG_EOM;
-          //subrata end
+          if(mGetAllocOp.chunkId%2 == 0)  //subrata just testing what will happen
+          {
+          //      return;
+          }
+           //subrata end
             if (mLeaseAcquireOp.leaseId < 0 ||
                     mLeaseAcquireOp.chunkId != mGetAllocOp.chunkId ||
                     mLeaseExpireTime <= Now()) {
@@ -919,7 +926,7 @@ private:
                 mNoCSAccessFlag     = ! theCSClearTextAllowedFlag ||
                     ! mLeaseAcquireOp.allowCSClearTextFlag;
                 const ServerLocation& theLocation =
-                    mGetAllocOp.chunkServers[mChunkServerIdx];
+                    mGetAllocOp.chunkServers[mChunkServerIdx];            //subrata : chunk server location is being set...
                 if (mOuter.mClientPoolPtr) {
                     mChunkServerPtr = &mOuter.mClientPoolPtr->Get(theLocation);
                 } else {
@@ -971,7 +978,7 @@ private:
                     mChunkServer.SetKey(0, 0, 0, 0);
                     mChunkServer.SetAuthContext(0);
                     mSizeOp.access.clear();
-                } else if (&mChunkServer == mChunkServerPtr) {
+                } else if (&mChunkServer == mChunkServerPtr) {   //subrata: this is where one chunkServer decides to connect otther chunkServer to gather chunks
                     mChunkServer.SetServer(theLocation);
                 }
                 KFS_LOG_STREAM(mNoCSAccessFlag ?
