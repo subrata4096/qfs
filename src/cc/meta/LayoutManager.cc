@@ -8154,6 +8154,7 @@ LayoutManager::ReplicateChunk(
     kfsSTier_t                    maxSTier,
     const char*                   reasonMsg)
 {
+    //subrata: so basically if we pass this routine only one valid "candidates" as distination, it will work
     // prefer a server that is being retired to the other nodes as
     // the source of the chunk replication
     StTmp<Servers> serversTmp(mServers3Tmp);
@@ -8185,7 +8186,7 @@ LayoutManager::ReplicateChunk(
             reason = "evacuation";
             if (recoveryInfo.HasRecovery()) {
                 reason     = "evacuation recovery";
-                dataServer = c;
+                dataServer = c;                            //subrata : probably we are interested in only this path not the else
             } else if (ds.GetReplicationReadLoad() <
                     mMaxConcurrentReadReplicationsPerNode &&
                     (ds.IsResponsiveServer() ||
@@ -8194,14 +8195,15 @@ LayoutManager::ReplicateChunk(
             }
         } else if (recoveryInfo.HasRecovery()) {
             reason     = "recovery";
-            dataServer = c;
+            dataServer = c;                                //subrata: only interested in this if and not the else...
         } else {
             reason = "re-replication";
         }
+         //subrata: so basically for RS recovery, the dataServer = c always!!
         // if we can't find a retiring server, pick a server that
         // has read b/w available
         for (Servers::const_iterator si = servers.begin();
-                ! dataServer && si != servers.end();
+                ! dataServer && si != servers.end();           //subrata: since the data server is already set, we will not enter this for loop during RS recovery. Guranteed!
                 ++si) {                                        //subrata: this loop bound is suspecious. Is it trying to get the lats server ? why not break after the first?
             ChunkServer& ss = **si;
             if (ss.GetReplicationReadLoad() >=
@@ -8211,7 +8213,7 @@ LayoutManager::ReplicateChunk(
             }
             dataServer = *si;              //subrata: why not chek and break here?
         }
-        if (! dataServer) {
+        if (! dataServer) {            //subrata: for RS recovery, it will be usually set
             continue;
         }
         KFS_LOG_STREAM_INFO <<
@@ -8231,7 +8233,7 @@ LayoutManager::ReplicateChunk(
         // request will only have meta server port, and empty host name.
         FileRecoveryInFlightCount::iterator recovIt =
             mFileRecoveryInFlightCount.end();
-        if (recoveryInfo.HasRecovery() && dataServer == c) {
+        if (recoveryInfo.HasRecovery() && dataServer == c) {   //subrata: we will enter inside this IF during RS recovery, since conditions match
             if (mClientCSAuthRequiredFlag && cs.GetAuthUid() != kKfsUserNone) {
                 recovIt = mFileRecoveryInFlightCount.insert(
                     make_pair(make_pair(cs.GetAuthUid(), clli.GetFileId()), 0)
