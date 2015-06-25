@@ -2004,6 +2004,25 @@ MetaAllocate::LayoutDone(int64_t chunkAllocProcessTime)
         chunkId_t  curChunkId   = chunkId;
         status = metatree.assignChunkId(fid, offset, chunkId, chunkVersion,
             appendChunk ? &appendOffset : 0, &curChunkId);
+
+        //subrata add
+
+        //We are keeping a new table with stripe_identifier(stripeID) to vector<chunkId_t> mapping. Our new recovery will be interms of this stripe_identifier and we will use it to communicate with chunk-servers as well. Specially for recovery.
+         
+        std::map<long, std::vector<chunkId_t> > :: iterator stripePos = gLayoutManager.stripeIdentifierToChunkIDMap.find(this->stripe_identifier);
+        if(stripePos == gLayoutManager.stripeIdentifierToChunkIDMap.end())
+        {
+           std::vector<chunkId_t> chunkVec;
+           chunkVec.push_back(curChunkId);
+           gLayoutManager.stripeIdentifierToChunkIDMap[this->stripe_identifier] = chunkVec;
+        }
+        else
+        {
+           gLayoutManager.stripeIdentifierToChunkIDMap[this->stripe_identifier].push_back(curChunkId);
+        }
+  
+        //subrata end
+
         if (status == 0) {
             // Offset can change in the case of append.
             offset = appendOffset;
@@ -4855,6 +4874,7 @@ MetaChunkAllocate::request(ostream &os)
         "Chunk-version: " << req->chunkVersion << "\r\n"
         "Min-tier: "      << (int)minSTier     << "\r\n"
         "Max-tier: "      << (int)maxSTier     << "\r\n"
+        "STRIPE_IDENTIFIER: "      << req->stripe_identifier     << "\r\n"    //subrata: adding beacuse meta server will senf this request to the chunkl server
     ;
     if (0 <= leaseId) {
         os << "Lease-id: " << leaseId << "\r\n";
@@ -4903,6 +4923,11 @@ MetaChunkDelete::request(ostream &os)
 void
 MetaChunkHeartbeat::request(ostream &os)
 {
+    //subrata add
+    //just for testing. Do not know where to add for printing ..
+    gLayoutManager.print_stripeIdentifierToChunkIDMap();
+
+    //subrata end
     os <<
     "HEARTBEAT \r\n"
     "Cseq: " << opSeqno << "\r\n"

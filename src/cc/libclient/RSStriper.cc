@@ -382,7 +382,12 @@ public:
                     "non sequential unaligned write");
                 return kErrorParameters;
             }
-            Flush(0);
+            //subrata add
+            //attach a stripe identifier for this set of chunks
+            //long newStripe_identifier = 1;
+            long newStripe_identifier = mOffset; //test
+            //subrata end
+            Flush(0,newStripe_identifier);
             QCASSERT(mPendingCount == 0);
             mOffset         = ioOffset;
             mRecoveryEndPos = mOffset;
@@ -408,12 +413,23 @@ public:
                 ioOffset % (CHUNKSIZE * mStripeCount) == 0 &&
                 mOffset == mRecoveryEndPos
             );
+
+            //subrata add
+            //attach a stripe identifier for this set of chunks
+            //long newStripe_identifier = 1;
+            long newStripe_identifier = mOffset; //test
+            //subrata end
             for (int i = 0; i < mStripeCount + mRecoveryStripeCount; i++) {
-                Write(mBuffersPtr[i]);
+                Write(mBuffersPtr[i],0,newStripe_identifier);
             }
         }
         if (mOffset - mRecoveryEndPos < max(1, inWriteThreshold)) {
-            Flush(inWriteThreshold);
+            //subrata add
+            //attach a stripe identifier for this set of chunks
+            //long newStripe_identifier = 1;
+            long newStripe_identifier = mOffset; //test
+            //subrata end
+            Flush(inWriteThreshold,newStripe_identifier);
             return 0;
         }
         QCASSERT(mRecoveryStripeCount > 0);
@@ -703,7 +719,8 @@ private:
     }
     void Write(
         Buffer& inBuffer,
-        int     inWriteThreshold = 0)
+        int     inWriteThreshold = 0,
+        long theStripe_identifier = -1)
     {
         if (inBuffer.mWriteLen < 0) {
             return;
@@ -732,7 +749,8 @@ private:
             inBuffer.mBuffer,
             inBuffer.mWriteLen,
             theOffset,
-            inWriteThreshold
+            inWriteThreshold,
+            theStripe_identifier
         );
         QCRTASSERT(
             theQueuedCount <= inBuffer.mWriteLen &&
@@ -749,17 +767,18 @@ private:
         KFS_LOG_EOM;
         inBuffer.mWriteLen -= theQueuedCount;
         mPendingCount -= theQueuedCount;
-        StartQueuedWrite(theQueuedCount);
+        StartQueuedWrite(theQueuedCount,theStripe_identifier);
     }
     void Flush(
-        int inWriteThreshold)
+        int inWriteThreshold,
+        long theStripe_identifier)
     {
         const int theThreshold = max(1, max(
             (int)(mOffset - mRecoveryEndPos), inWriteThreshold));
         int theCurThreshold = max(0, inWriteThreshold);
         while (mPendingCount >= theThreshold) {
             for (int i = 0; i < mStripeCount + mRecoveryStripeCount; i++) {
-                Write(mBuffersPtr[i], theCurThreshold);
+                Write(mBuffersPtr[i], theCurThreshold, theStripe_identifier);
             }
             if (mPendingCount < theThreshold || theCurThreshold <= 0) {
                 break;
@@ -774,7 +793,7 @@ private:
             " cur: "     << theCurThreshold <<
         KFS_LOG_EOM;
     }
-    bool ComputeRecovery(
+    bool ComputeRecovery(                              //subrata : ComputeRecovery is called for each stripe write. We can append a stripe id here
         int* ioPaddSizeWriteFrontTrimPtr = 0)
     {
          KFS_LOG_STREAM_ERROR << "subrata: ComputeRecovery function in libclient/RSStriper.cc was called " << KFS_LOG_EOM;

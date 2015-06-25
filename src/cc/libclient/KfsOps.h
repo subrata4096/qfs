@@ -146,7 +146,7 @@ struct KfsOp {
     size_t   contentBufLen;
     char*    contentBuf;
     string   statusMsg; // optional, mostly for debugging
-
+    long            stripe_identifier;  //subrata added
     KfsOp (KfsOp_t o, kfsSeq_t s)
         : op(o),
           seq(s),

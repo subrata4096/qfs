@@ -180,7 +180,8 @@ main(int argc, char **argv)
 
     // write something to the file
     //int numBytes = 2048;
-    int numBytes = 64 << 20;
+    //int numBytes = 64 << 20;
+    int numBytes = 768 << 20;
     char *dataBuf = new char[numBytes];
 
     generateData(dataBuf, numBytes);
@@ -200,6 +201,7 @@ main(int argc, char **argv)
 
     // Close the file-handle
     gKfsClient->Close(fd);
+    getchar();
 
     // Determine the file-size
     KFS::KfsFileAttr fileAttr;

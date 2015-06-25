@@ -955,6 +955,12 @@ public:
     typedef ChunkServer::ChunkIdSet      ChunkIdSet;
     typedef RackInfo::RackId             RackId;
     typedef ChunkServer::StorageTierInfo StorageTierInfo;
+    
+    //subrata add
+  
+    std::map<long, std::vector<chunkId_t> > stripeIdentifierToChunkIDMap; // a map which keeps the stripe identifier as the key and list of associated chunks as value     
+    void print_stripeIdentifierToChunkIDMap();
+    //subrata end
 
     LayoutManager();
 

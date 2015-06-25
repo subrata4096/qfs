@@ -68,7 +68,9 @@ class Writer::Impl :
 {
 public:
     typedef QCRefCountedObj::StRef StRef;
-
+    //subrata add
+    long stripe_identifier;
+    //subrata end
     enum
     {
         kErrorNone       = 0,
@@ -358,7 +360,9 @@ private:
         struct WriteOp;
         typedef QCDLList<WriteOp, 0> Queue;
         typedef QCDLList<ChunkWriter, 0> Writers;
-
+        //subrata add
+        long stripe_identifier;
+        //subrata end
         struct WriteOp : public KfsOp
         {
             WritePrepareOp mWritePrepareOp;
@@ -791,6 +795,7 @@ private:
             Reset(mAllocOp);
             mAllocOp.fid                  = mOuter.mFileId;
             mAllocOp.pathname             = mOuter.mPathName;
+            mAllocOp.stripe_identifier    = mOuter.stripe_identifier;
             mAllocOp.append               = false;
             mAllocOp.chunkId              = -1;
             mAllocOp.chunkVersion         = -1;
@@ -1440,10 +1445,12 @@ private:
         {
             mLastOpPtr   = &inOp;
             mOpStartTime = Now();
-            KFS_LOG_STREAM_DEBUG << mLogPrefix <<
+            //subrata commenting
+            //KFS_LOG_STREAM_DEBUG << mLogPrefix <<
+            KFS_LOG_STREAM_ERROR << mLogPrefix <<
                 "+> " << (inServerPtr ? "" : "meta ") << inOp.Show() <<
                 " buffer: " << (void*)inBufferPtr <<
-                "/" << (inBufferPtr ? inBufferPtr->BytesConsumable() : 0) <<
+                "/" << (inBufferPtr ? inBufferPtr->BytesConsumable() : 0) << " subrata:striped_identifier = " << inOp.stripe_identifier <<
             KFS_LOG_EOM;
             if (inServerPtr) {
                 mOuter.mStats.mChunkOpsQueuedCount++;
@@ -1682,7 +1689,8 @@ private:
         StartWrite();
     }
     void QueueWrite(
-        int inWriteThreshold)
+        int inWriteThreshold,
+        long theStripeIdentifier = -1)
     {
         if (mStriperPtr) {
             QCStValueIncrementor<int> theIncrement(mStriperProcessCount, 1);
@@ -1697,7 +1705,8 @@ private:
             mBuffer,
             mBuffer.BytesConsumable(),
             mOffset,
-            inWriteThreshold
+            inWriteThreshold,
+	    theStripeIdentifier
         );
         if (theQueuedCount > 0) {
             mOffset += theQueuedCount;
@@ -1708,12 +1717,16 @@ private:
         IOBuffer& inBuffer,
         int       inSize,
         Offset    inOffset,
-        int       inWriteThreshold)
+        int       inWriteThreshold,
+        long theStripe_identifier = -1)  //subrata add
     {
         QCASSERT(inOffset >= 0);
         if (inSize <= 0 || inBuffer.BytesConsumable() <= 0) {
             return 0;
         }
+        //subrata add
+        //mOuter.stripe_identifier = theStripe_identifier;
+
         const Offset theFileOffset = inOffset - inOffset % CHUNKSIZE;
         Writers::Iterator theIt(mWriters);
         ChunkWriter* thePtr;
@@ -1730,6 +1743,9 @@ private:
             thePtr = new ChunkWriter(
                 *this, mChunkServerInitialSeqNum, mLogPrefix);
         }
+        //subrata add
+        //thePtr->stripe_identifier = mOuter.stripe_identifier;
+
         const int theQueuedCount = thePtr->QueueWrite(
             inBuffer, inSize, inOffset, inWriteThreshold);
         QCASSERT(Writers::Front(mWriters) == thePtr);
@@ -1902,7 +1918,8 @@ Writer::Striper::QueueWrite(
     IOBuffer&       inBuffer,
     int             inSize,
     Writer::Offset  inOffset,
-    int             inWriteThreshold)
+    int             inWriteThreshold,
+    long theStripe_identifier)             //subrata add
 {
     const int theQueuedCount = mOuter.QueueWrite(
         inBuffer, inSize, inOffset, inWriteThreshold);
@@ -1912,12 +1929,14 @@ Writer::Striper::QueueWrite(
 
 void
 Writer::Striper::StartQueuedWrite(
-    int inQueuedCount)
+    int inQueuedCount,
+    long theStripe_identifier)
 {
     if (! mWriteQueuedFlag) {
         return;
     }
     mWriteQueuedFlag = false;
+    mOuter.stripe_identifier = theStripe_identifier;
     mOuter.StartQueuedWrite(inQueuedCount);
 }
 

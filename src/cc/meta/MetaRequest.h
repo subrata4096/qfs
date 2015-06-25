@@ -947,6 +947,9 @@ struct MetaAllocate: public MetaRequest, public  KfsCallbackObj {
     chunkId_t            chunkId;      //!< Id of the chunk that was allocated
     seq_t                chunkVersion; //!< version # assigned to this chunk
     seq_t                initialChunkVersion;
+
+    long                 stripe_identifier; //subrata add - identify each stripe with an id
+
     int16_t              numReplicas;  //!< inherited from file's fattr
     bool                 stripedFileFlag;
     bool                 layoutDone;   //!< Has layout of chunk been done
@@ -1000,6 +1003,7 @@ struct MetaAllocate: public MetaRequest, public  KfsCallbackObj {
           chunkId(-1),
           chunkVersion(-1),
           initialChunkVersion(-1),
+          stripe_identifier(-1),
           numReplicas(0),
           stripedFileFlag(false),
           layoutDone(false),
@@ -1065,6 +1069,9 @@ struct MetaAllocate: public MetaRequest, public  KfsCallbackObj {
         .Def("Space-reserve",            &MetaAllocate::spaceReservationSize, int(1<<20))
         .Def("Max-appenders",            &MetaAllocate::maxAppendersPerChunk,    int(64))
         .Def("Invalidate-all",           &MetaAllocate::invalidateAllFlag,         false)
+        //subrata add
+        .Def("STRIPE_IDENTIFIER",           &MetaAllocate::stripe_identifier,      long(-1))
+        //subrata end
         ;
     }
 };
@@ -1638,7 +1645,7 @@ struct MetaChunkAllocate : public MetaChunkRequest {
           maxSTier(maxTier),
           chunkServerAccessStr(),
           chunkAccessStr(),
-          req(r)
+          req(r)   //subrata : r (MetaAllocate) has the stripe_identifier set in it
           {}
     virtual void handle();
     virtual void request(ostream &os);

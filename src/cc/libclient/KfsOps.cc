@@ -427,6 +427,9 @@ AllocateOp::Request(ostream &os)
         "Pathname: "     << pathname          << "\r\n"
         "File-handle: "  << fid               << "\r\n"
         "Chunk-offset: " << fileOffset        << "\r\n"
+        //subrata add
+        "STRIPE_IDENTIFIER: " << stripe_identifier        << "\r\n"
+        //subrata end
     ;
     if (invalidateAllFlag) {
         os << "Invalidate-all: 1\r\n";

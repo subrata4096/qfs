@@ -217,6 +217,32 @@ ARAChunkCache::Invalidate(fid_t fid, chunkId_t chunkId)
     return true;
 }
 
+//subrata add
+#include <sstream>
+void
+LayoutManager::print_stripeIdentifierToChunkIDMap()
+{
+    std::map<long, std::vector<chunkId_t> > :: iterator iterStart = stripeIdentifierToChunkIDMap.begin();
+    std::map<long, std::vector<chunkId_t> > :: iterator iterEnd = stripeIdentifierToChunkIDMap.end();
+    std::stringstream ss;
+    ss << "subrata: printing stripeIdentifierToChunkIDMap : start \n";
+    for(; iterStart!= iterEnd; iterStart++)
+    {
+        ss << iterStart->first << " < -- > ";
+        std::vector<chunkId_t> :: iterator ii = (iterStart->second).begin();
+        std::vector<chunkId_t> :: iterator jj = (iterStart->second).end();
+        for(; ii != jj ; ii++)
+        {
+           ss << *ii << ", ";
+        }
+        ss << "\n";
+    }
+    ss << "\n stripeIdentifierToChunkIDMap : end ";
+    KFS_LOG_STREAM_ERROR << ss.str() << KFS_LOG_EOM;
+}
+//subrata end
+
+
 void
 ARAChunkCache::RequestNew(MetaAllocate& req)
 {
@@ -8092,6 +8118,8 @@ LayoutManager::ReplicateChunk(
     StTmp<vector<kfsSTier_t> > tiersTmp(mPlacementTiersTmp);
     vector<kfsSTier_t>&        tiers = tiersTmp.Get();
      ChunkServerPtr myCS;
+    //subrata commenting start
+    //#if 0
     for (int rem = extraReplicas; ;) {
         const size_t psz = candidates.size();
         for (size_t i = 0; ; ) {
@@ -8100,10 +8128,10 @@ LayoutManager::ReplicateChunk(
                 break;
             }
             //subrata: start
-            myCS = cs;
-            break;
+            //myCS = cs;
+            //break;
             //subrata end
-            if (placement.IsUsingServerExcludes() && (
+            if (placement.IsUsingServerExcludes() && (                    //subrata placement.IsUsingServerExcludes() is "false" found during debugging
                     find(candidates.begin(), candidates.end(), cs) !=
                         candidates.end() ||
                     mChunkToServerMap.HasServer(cs, clli))) {
@@ -8137,6 +8165,21 @@ LayoutManager::ReplicateChunk(
     //ChunkServerPtr theFirstOne = myCS;
     //return scheduleRepilcationNew(clli, extraReplicas, recoveryInfo,
     //      tiers, maxSTier, numDone, theFirstOne);
+    //#endif
+    //subrata commenting end
+    //subrata add
+    //#if 0
+    StTmp<Servers> serversTmp1(mServers3Tmp);
+    Servers&       servers = serversTmp1.Get();
+    mChunkToServerMap.GetServers(clli, servers);  //subrata, may be this API is not good. May be this is useful to find replicas. Which servers store this exact chunkID
+    if( servers.size() > 0)
+    { 
+        myCS = *( servers.begin()) ;
+	KFS_LOG_STREAM_ERROR << "subrata: Am I here ? ***** server candidates are : " << myCS->GetHostPortStr() << KFS_LOG_EOM;
+      //  candidates.push_back(myCS);
+    }
+    //assert(myCS);
+    //#endif 
     return ReplicateChunk(clli, extraReplicas, candidates, recoveryInfo,
      tiers, maxSTier);
     //subrata end
@@ -8171,6 +8214,9 @@ LayoutManager::ReplicateChunk(
             ++it) {
         const ChunkServerPtr& c    = *it;
         ChunkServer&          cs   = *c;
+        //subrata add print
+	KFS_LOG_STREAM_ERROR << "subrata: ***** server candidates are : " << cs.GetHostPortStr() << KFS_LOG_EOM;
+        //subrata end print
         const kfsSTier_t      tier = ti != tiers.end() ? *ti : kKfsSTierUndef;
         // verify that we got good candidates
         if (find(servers.begin(), servers.end(), c) != servers.end()) {

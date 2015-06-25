@@ -170,9 +170,11 @@ public:
             IOBuffer& inBuffer,
             int       inSize,
             Offset    inOffset,
-            int       inWriteThreshold);
+            int       inWriteThreshold,
+            long theStripeidentifier = -1);
         void StartQueuedWrite(
-            int inQueuedCount);
+            int inQueuedCount,
+            long theStripe_indentifier);
         bool IsWriteQueued() const
             { return mWriteQueuedFlag; }
     private:

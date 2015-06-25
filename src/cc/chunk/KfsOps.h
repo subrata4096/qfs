@@ -285,7 +285,7 @@ struct KfsOp : public KfsCallbackObj
     int64_t         startTime;
     BufferBytes     bufferBytes;
     NextOp          nextOp;
-
+  
     KfsOp(KfsOp_t o, kfsSeq_t s, KfsCallbackObj *c = 0);
     void Cancel() {
         cancelled = true;
@@ -471,6 +471,7 @@ struct AllocChunkOp : public KfsOp {
     kfsFileId_t           fileId;
     kfsChunkId_t          chunkId;
     int64_t               chunkVersion;
+    long                 stripe_identifier; //subrata add - identify each stripe with an id
     int64_t               leaseId;
     bool                  appendFlag;
     StringBufT<256>       servers;
@@ -491,6 +492,7 @@ struct AllocChunkOp : public KfsOp {
           fileId(-1),
           chunkId(-1),
           chunkVersion(-1),
+          stripe_identifier(-1),
           leaseId(-1),
           appendFlag(false),
           servers(),
@@ -545,6 +547,7 @@ struct AllocChunkOp : public KfsOp {
         .Def("C-access-length", &AllocChunkOp::chunkAccessLength)
         .Def("CS-acess-time",   &AllocChunkOp::chunkServerAccessValidForTime)
         .Def("CS-acess-issued", &AllocChunkOp::chunkServerAccessIssuedTime)
+        .Def("STRIPE_IDENTIFIER", &AllocChunkOp::stripe_identifier) //subrata: adding for parsing the request from meta server
         ;
     }
 };
