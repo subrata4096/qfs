@@ -960,6 +960,7 @@ public:
   
     std::map<long, std::vector<chunkId_t> > stripeIdentifierToChunkIDMap; // a map which keeps the stripe identifier as the key and list of associated chunks as value     
     void print_stripeIdentifierToChunkIDMap();
+    bool serverSet; //for test
     //subrata end
 
     LayoutManager();
@@ -1136,6 +1137,19 @@ public:
     bool GetChunkFileId(chunkId_t chunkId, fid_t& fileId,
         const MetaChunkInfo** chunkInfo = 0, const MetaFattr** fa = 0,
         LayoutManager::Servers* srvs = 0);
+  
+   //subrata add
+   //get the chunk related info for this chunk id, if not found probably will return NULL ?
+   MetaChunkInfo* GetChunkInfoForChunkId(chunkId_t chunkId)
+   {
+       CSMap::Entry* cs = mChunkToServerMap.Find(chunkId);
+       if(cs)
+       {
+          return cs->GetChunkInfo();
+       }
+       return NULL;
+   }
+   //subrata end
 
     /// Dump out the chunk location map to a file.  The file is
     /// written to the specified dir.  The filename:
@@ -2107,6 +2121,11 @@ protected:
     int             mTiersMaxWritesPerDrive[kKfsSTierCount];
     double          mTiersTotalWritableDrivesMult[kKfsSTierCount];
     int             mTierCandidatesCount[kKfsSTierCount];
+
+    //subrata add
+    ChunkServerPtr CoordinateTheReplicationProcess(CSMap::Entry& c);
+    //subrata end
+
 
     /// Check the # of copies for the chunk and return true if the
     /// # of copies is less than targeted amount.  We also don't replicate a chunk

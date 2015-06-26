@@ -2020,6 +2020,9 @@ MetaAllocate::LayoutDone(int64_t chunkAllocProcessTime)
         {
            gLayoutManager.stripeIdentifierToChunkIDMap[this->stripe_identifier].push_back(curChunkId);
         }
+        //subrata: find the chunk related entry that the LayoutManager keeps and add the stripe_identifier along with other information for the chunk
+        MetaChunkInfo* chunkInfo = gLayoutManager.GetChunkInfoForChunkId(chunkId);
+        chunkInfo->stripe_identifier = this->stripe_identifier;
   
         //subrata end
 

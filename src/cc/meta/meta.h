@@ -440,6 +440,13 @@ public:
     chunkOff_t offset;      //!< offset of chunk within file
     chunkId_t  chunkId;     //!< unique chunk identifier
     seq_t      chunkVersion;    //!< version # for this chunk
+   
+    //subrata add
+    long      stripe_identifier;    //subrata MetaChunkInfo also keeps track of the stripe_identifier to which this chunk (or chunkID belongs)
+
+
+   //subrata end
+
     fid_t id() const { return fattr->id(); }    //!< return the owner id
     MetaFattr* getFattr() const { return fattr; }
     Key keySelf() const { return Key(KFS_CHUNKINFO, id(), offset); }

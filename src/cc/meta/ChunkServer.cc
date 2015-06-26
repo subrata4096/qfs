@@ -1795,7 +1795,7 @@ ChunkServer::EnqueueSelf(MetaChunkRequest* r)
     ChunkServerRequest(*r, mOstream.Set(buf), buf);
     mOstream.Reset();
     if (mRecursionCount <= 0) {
-        mNetConnection->StartFlush();
+        mNetConnection->StartFlush();  //subrata : why is it crashhing for if we send two subsequent chunk failure to the same server? I am getting SIGPIPE Broken Pipe error
     }
 }
 

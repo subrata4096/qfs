@@ -8070,6 +8070,62 @@ int LayoutManager::scheduleRepilcationNew(
           //subrata: end function
 }
 
+ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c)
+{
+       chunkId_t theMissing_chunkId = c.GetChunkId();
+       long stripe_identifier = (c.GetChunkInfo())->stripe_identifier; 
+       std::map<long, std::vector<chunkId_t> > :: iterator stripePos = stripeIdentifierToChunkIDMap.find(stripe_identifier);
+       std::vector<chunkId_t> :: iterator vecStart = (stripePos->second).begin(); 
+       std::vector<chunkId_t> :: iterator vecEnd = (stripePos->second).end(); 
+ 
+       std::stringstream ss;
+ 
+       ChunkServerPtr selectedDstChunkPtr;
+      
+       ss << "subrata: " <<  "the missing chunkId= "<< theMissing_chunkId << "  other parts : ";
+       for(; vecStart != vecEnd; vecStart++)
+       {
+           if(theMissing_chunkId == *vecStart)
+           {
+              continue;
+           } 
+
+           ss << "chunkID=" << *vecStart;
+           //const CSMap::Entry* cse = mChunkToServerMap.Find(*vecStart);
+           Servers srvs = mChunkToServerMap.GetServers(*vecStart);
+
+           Servers::iterator servIterStart = srvs.begin(); 
+           Servers::iterator servIterEnd = srvs.end();
+           ss << " locations= ";
+           for(; servIterStart != servIterEnd ; ++servIterStart) 
+           {
+               if(this->serverSet == false)
+               {
+               if((*servIterStart)->GetHostPortStr() == "127.0.0.1:21007")  //subrata: *** IMPORTANT ***. For some reason for 2 lost chunks if we set the same server, we are getting Broken Pipe, SIGPIPE error comming from "mNetConnection->StartFlush()" in meta/ChunkServer.cc:1798 => cc/kfsio/NetConnection.h:315
+               {
+                  selectedDstChunkPtr = *servIterStart;
+                  this->serverSet = true;
+               }
+               }
+               else
+               {
+                  if((*servIterStart)->GetHostPortStr() == "127.0.0.1:21008")
+                  {
+                  selectedDstChunkPtr = *servIterStart;
+                  }
+               }
+               ss << (*servIterStart)->GetHostPortStr() << ","; 
+           }
+           ss << " | ";
+           
+       } 
+
+       KFS_LOG_STREAM_ERROR << ss.str() << KFS_LOG_EOM;
+
+       return selectedDstChunkPtr;
+              
+}
+
 int
 LayoutManager::ReplicateChunk(
     CSMap::Entry&                  clli,
@@ -8082,6 +8138,10 @@ LayoutManager::ReplicateChunk(
     if (extraReplicas <= 0) {
         return 0;
     }
+
+    //subrata add
+     ChunkServerPtr myCS = CoordinateTheReplicationProcess(clli);
+    //subrata end
     const MetaFattr* const fa       = clli.GetFattr();
     kfsSTier_t             minSTier = fa->minSTier;
     kfsSTier_t             maxSTier = fa->maxSTier;
@@ -8117,9 +8177,8 @@ LayoutManager::ReplicateChunk(
     Servers&                   candidates = serversTmp.Get();
     StTmp<vector<kfsSTier_t> > tiersTmp(mPlacementTiersTmp);
     vector<kfsSTier_t>&        tiers = tiersTmp.Get();
-     ChunkServerPtr myCS;
     //subrata commenting start
-    //#if 0
+    #if 0
     for (int rem = extraReplicas; ;) {
         const size_t psz = candidates.size();
         for (size_t i = 0; ; ) {
@@ -8180,6 +8239,11 @@ LayoutManager::ReplicateChunk(
     }
     //assert(myCS);
     //#endif 
+    #endif  //subrata
+    //subrata add
+  
+     candidates.push_back(myCS);
+   
     return ReplicateChunk(clli, extraReplicas, candidates, recoveryInfo,
      tiers, maxSTier);
     //subrata end

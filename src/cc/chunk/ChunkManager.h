@@ -723,6 +723,13 @@ private:
     /// table that maps chunkIds to their associated state
     CMap   mChunkTable;
     size_t mMaxIORequestSize;
+  
+    //subrata add
+  
+    std::map<long, std::vector<chunkId_t> > stripeIdentifierToChunkIDMap;
+    
+   //subrata end
+
     /// Chunk lru, and stale chunks list heads.
     ChunkLists mChunkInfoLists[kChunkInfoListCount];
 
