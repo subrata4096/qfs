@@ -948,6 +948,7 @@ struct MetaAllocate: public MetaRequest, public  KfsCallbackObj {
     seq_t                chunkVersion; //!< version # assigned to this chunk
     seq_t                initialChunkVersion;
 
+    int                  rs_chunk_index; //subrata add - index of each rs chunk [0 to (m+k-1)]
     long                 stripe_identifier; //subrata add - identify each stripe with an id
 
     int16_t              numReplicas;  //!< inherited from file's fattr
@@ -1003,6 +1004,7 @@ struct MetaAllocate: public MetaRequest, public  KfsCallbackObj {
           chunkId(-1),
           chunkVersion(-1),
           initialChunkVersion(-1),
+          rs_chunk_index(-1),
           stripe_identifier(-1),
           numReplicas(0),
           stripedFileFlag(false),
@@ -1070,6 +1072,7 @@ struct MetaAllocate: public MetaRequest, public  KfsCallbackObj {
         .Def("Max-appenders",            &MetaAllocate::maxAppendersPerChunk,    int(64))
         .Def("Invalidate-all",           &MetaAllocate::invalidateAllFlag,         false)
         //subrata add
+        .Def("RS_CHUNK_INDEX",              &MetaAllocate::rs_chunk_index,         int(-1))
         .Def("STRIPE_IDENTIFIER",           &MetaAllocate::stripe_identifier,      long(-1))
         //subrata end
         ;

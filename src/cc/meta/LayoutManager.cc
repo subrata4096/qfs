@@ -222,18 +222,18 @@ ARAChunkCache::Invalidate(fid_t fid, chunkId_t chunkId)
 void
 LayoutManager::print_stripeIdentifierToChunkIDMap()
 {
-    std::map<long, std::vector<chunkId_t> > :: iterator iterStart = stripeIdentifierToChunkIDMap.begin();
-    std::map<long, std::vector<chunkId_t> > :: iterator iterEnd = stripeIdentifierToChunkIDMap.end();
+    std::map<long, std::map<int,chunkId_t> > :: iterator iterStart = stripeIdentifierToChunkIDMap.begin();
+    std::map<long, std::map<int,chunkId_t> > :: iterator iterEnd = stripeIdentifierToChunkIDMap.end();
     std::stringstream ss;
     ss << "subrata: printing stripeIdentifierToChunkIDMap : start \n";
     for(; iterStart!= iterEnd; iterStart++)
     {
         ss << iterStart->first << " < -- > ";
-        std::vector<chunkId_t> :: iterator ii = (iterStart->second).begin();
-        std::vector<chunkId_t> :: iterator jj = (iterStart->second).end();
+        std::map<int,chunkId_t> :: iterator ii = (iterStart->second).begin();
+        std::map<int,chunkId_t> :: iterator jj = (iterStart->second).end();
         for(; ii != jj ; ii++)
         {
-           ss << *ii << ", ";
+           ss << ii->first << "->" << ii->second << " , ";
         }
         ss << "\n";
     }
@@ -8070,29 +8070,74 @@ int LayoutManager::scheduleRepilcationNew(
           //subrata: end function
 }
 
+//subrata add
+
+int LayoutManager::ChooseRecoverySources(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs)
+{
+           int survivors = 0;
+           for(int i = 0 ; survivors < numStripes ; i++)
+           {
+              if(i == missingIndex)
+              {
+                 continue;
+              }
+              chosenSourceIndexs[survivors] = i;
+              survivors++;
+           }
+           return 0;
+}
+
+//THIS FUNCTION CAN REPAIR ONLY ONE ERASURE (WE have not handled more than 1 erasure in one stripe)
+//decodingCoefficient is map between rs_chunk_index and its corresponding coefficient appropriately calculated based on whether it is a data or parity chunk
+// the reconstruction is simple: erasureChunk = Sum(coeff * rs_chunk) => which will be implemented through partial distributed decoding 
+
+int LayoutManager::GetCoefficientsForDecoding(int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs, std::map<int,int>& decodingCoefficient)  
+{
+    int coefficients[inStripeCount];
+
+    GetDecodingCoefficients(inStripeCount, inRecoveryStripeCount, chosenSourceIndexs, missingIndex , coefficients);
+
+    return 0;
+}
+
+int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex)
+{
+        int chosenSourceIndexs[numStripes+1];
+	chosenSourceIndexs[numStripes] = -1; //according to requirements of Jerassure IMPORTANT!!
+        
+        this->ChooseRecoverySources(stripe_identifier, numStripes, numRecoveryStripes, missingIndex, chosenSourceIndexs);
+
+         std::map<int,int> decodingCoefficient;
+        this->GetCoefficientsForDecoding(inStripeCount, inRecoveryStripeCount, missingIndex,chosenSourceIndexs,decodingCoefficient);
+}
+
 ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c)
 {
        chunkId_t theMissing_chunkId = c.GetChunkId();
+       const MetaFattr* const fa = c.GetFattr();
        long stripe_identifier = (c.GetChunkInfo())->stripe_identifier; 
-       std::map<long, std::vector<chunkId_t> > :: iterator stripePos = stripeIdentifierToChunkIDMap.find(stripe_identifier);
-       std::vector<chunkId_t> :: iterator vecStart = (stripePos->second).begin(); 
-       std::vector<chunkId_t> :: iterator vecEnd = (stripePos->second).end(); 
+     
+       std::map<long, std::map<int,chunkId_t> > :: iterator stripePos = stripeIdentifierToChunkIDMap.find(stripe_identifier);
+       std::map<int,chunkId_t> :: iterator vecStart = (stripePos->second).begin(); 
+       std::map<int,chunkId_t> :: iterator vecEnd = (stripePos->second).end(); 
  
        std::stringstream ss;
  
        ChunkServerPtr selectedDstChunkPtr;
-      
+     
+       int theRS_chunk_index_missing = -1; 
        ss << "subrata: " <<  "the missing chunkId= "<< theMissing_chunkId << "  other parts : ";
        for(; vecStart != vecEnd; vecStart++)
        {
-           if(theMissing_chunkId == *vecStart)
+           if(theMissing_chunkId == vecStart->second)
            {
+              theRS_chunk_index_missing = vecStart->first;
               continue;
            } 
 
-           ss << "chunkID=" << *vecStart;
+           ss << "chunkID=" << vecStart->second << " rs_chunk_index=" << vecStart->first;
            //const CSMap::Entry* cse = mChunkToServerMap.Find(*vecStart);
-           Servers srvs = mChunkToServerMap.GetServers(*vecStart);
+           Servers srvs = mChunkToServerMap.GetServers(vecStart->second);
 
            Servers::iterator servIterStart = srvs.begin(); 
            Servers::iterator servIterEnd = srvs.end();
@@ -8122,9 +8167,16 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c)
 
        KFS_LOG_STREAM_ERROR << ss.str() << KFS_LOG_EOM;
 
+
+      this->GetPartialDecodingInformation(stripe_identifier, fa->numStripes, fa->numRecoveryStripes, theRS_chunk_index_missing);
+
+
+
        return selectedDstChunkPtr;
               
 }
+
+//subrata : end
 
 int
 LayoutManager::ReplicateChunk(

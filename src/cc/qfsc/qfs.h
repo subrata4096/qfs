@@ -38,7 +38,7 @@ extern "C" {
       KFS_STRIPED_FILE_TYPE_UNKNOWN     = 0,
       KFS_STRIPED_FILE_TYPE_NONE        = 1,
       KFS_STRIPED_FILE_TYPE_RS          = 2,
-      KFS_STRIPED_FILE_TYPE_RS_JERASURE = 3
+      KFS_STRIPED_FILE_TYPE_RS_JERASURE = 3   //subrata: this is important. And this is what are going to use for our custom implementation
   };
 
 // From KfsClient.h

@@ -420,7 +420,7 @@ public:
             long newStripe_identifier = mOffset; //test
             //subrata end
             for (int i = 0; i < mStripeCount + mRecoveryStripeCount; i++) {
-                Write(mBuffersPtr[i],0,newStripe_identifier);
+                Write(mBuffersPtr[i],0, i, newStripe_identifier); //subrata
             }
         }
         if (mOffset - mRecoveryEndPos < max(1, inWriteThreshold)) {
@@ -720,6 +720,7 @@ private:
     void Write(
         Buffer& inBuffer,
         int     inWriteThreshold = 0,
+        int     theRS_chunk_index = -1,
         long theStripe_identifier = -1)
     {
         if (inBuffer.mWriteLen < 0) {
@@ -750,6 +751,7 @@ private:
             inBuffer.mWriteLen,
             theOffset,
             inWriteThreshold,
+            theRS_chunk_index,
             theStripe_identifier
         );
         QCRTASSERT(
@@ -767,7 +769,7 @@ private:
         KFS_LOG_EOM;
         inBuffer.mWriteLen -= theQueuedCount;
         mPendingCount -= theQueuedCount;
-        StartQueuedWrite(theQueuedCount,theStripe_identifier);
+        StartQueuedWrite(theQueuedCount,theRS_chunk_index,theStripe_identifier); //subrata
     }
     void Flush(
         int inWriteThreshold,
@@ -778,7 +780,7 @@ private:
         int theCurThreshold = max(0, inWriteThreshold);
         while (mPendingCount >= theThreshold) {
             for (int i = 0; i < mStripeCount + mRecoveryStripeCount; i++) {
-                Write(mBuffersPtr[i], theCurThreshold, theStripe_identifier);
+                Write(mBuffersPtr[i], theCurThreshold, i, theStripe_identifier); //subrata
             }
             if (mPendingCount < theThreshold || theCurThreshold <= 0) {
                 break;

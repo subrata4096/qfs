@@ -2009,16 +2009,16 @@ MetaAllocate::LayoutDone(int64_t chunkAllocProcessTime)
 
         //We are keeping a new table with stripe_identifier(stripeID) to vector<chunkId_t> mapping. Our new recovery will be interms of this stripe_identifier and we will use it to communicate with chunk-servers as well. Specially for recovery.
          
-        std::map<long, std::vector<chunkId_t> > :: iterator stripePos = gLayoutManager.stripeIdentifierToChunkIDMap.find(this->stripe_identifier);
+        std::map<long, std::map<int,chunkId_t> > :: iterator stripePos = gLayoutManager.stripeIdentifierToChunkIDMap.find(this->stripe_identifier);
         if(stripePos == gLayoutManager.stripeIdentifierToChunkIDMap.end())
         {
-           std::vector<chunkId_t> chunkVec;
-           chunkVec.push_back(curChunkId);
-           gLayoutManager.stripeIdentifierToChunkIDMap[this->stripe_identifier] = chunkVec;
+           std::map<int, chunkId_t> chunkMap;
+           chunkMap[this->rs_chunk_index] = curChunkId;
+           gLayoutManager.stripeIdentifierToChunkIDMap[this->stripe_identifier] = chunkMap;
         }
         else
         {
-           gLayoutManager.stripeIdentifierToChunkIDMap[this->stripe_identifier].push_back(curChunkId);
+           gLayoutManager.stripeIdentifierToChunkIDMap[this->stripe_identifier][this->rs_chunk_index] = curChunkId;
         }
         //subrata: find the chunk related entry that the LayoutManager keeps and add the stripe_identifier along with other information for the chunk
         MetaChunkInfo* chunkInfo = gLayoutManager.GetChunkInfoForChunkId(chunkId);

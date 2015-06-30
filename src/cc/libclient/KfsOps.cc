@@ -429,6 +429,7 @@ AllocateOp::Request(ostream &os)
         "Chunk-offset: " << fileOffset        << "\r\n"
         //subrata add
         "STRIPE_IDENTIFIER: " << stripe_identifier        << "\r\n"
+        "RS_CHUNK_INDEX: " << rs_chunk_index        << "\r\n"
         //subrata end
     ;
     if (invalidateAllFlag) {

@@ -171,9 +171,11 @@ public:
             int       inSize,
             Offset    inOffset,
             int       inWriteThreshold,
+            int theRS_chunk_index = -1,
             long theStripeidentifier = -1);
         void StartQueuedWrite(
             int inQueuedCount,
+            int theRS_chunk_index,
             long theStripe_indentifier);
         bool IsWriteQueued() const
             { return mWriteQueuedFlag; }

@@ -69,6 +69,7 @@ class Writer::Impl :
 public:
     typedef QCRefCountedObj::StRef StRef;
     //subrata add
+    int rs_chunk_index;
     long stripe_identifier;
     //subrata end
     enum
@@ -361,6 +362,7 @@ private:
         typedef QCDLList<WriteOp, 0> Queue;
         typedef QCDLList<ChunkWriter, 0> Writers;
         //subrata add
+        int rs_chunk_index;
         long stripe_identifier;
         //subrata end
         struct WriteOp : public KfsOp
@@ -795,7 +797,8 @@ private:
             Reset(mAllocOp);
             mAllocOp.fid                  = mOuter.mFileId;
             mAllocOp.pathname             = mOuter.mPathName;
-            mAllocOp.stripe_identifier    = mOuter.stripe_identifier;
+            mAllocOp.rs_chunk_index       = mOuter.rs_chunk_index;  //subrata
+            mAllocOp.stripe_identifier    = mOuter.stripe_identifier;   //subrata
             mAllocOp.append               = false;
             mAllocOp.chunkId              = -1;
             mAllocOp.chunkVersion         = -1;
@@ -1690,7 +1693,8 @@ private:
     }
     void QueueWrite(
         int inWriteThreshold,
-        long theStripeIdentifier = -1)
+        int theRS_chunk_index = -1, //subrata
+        long theStripeIdentifier = -1)  //subrata
     {
         if (mStriperPtr) {
             QCStValueIncrementor<int> theIncrement(mStriperProcessCount, 1);
@@ -1706,6 +1710,7 @@ private:
             mBuffer.BytesConsumable(),
             mOffset,
             inWriteThreshold,
+            theRS_chunk_index,
 	    theStripeIdentifier
         );
         if (theQueuedCount > 0) {
@@ -1718,6 +1723,7 @@ private:
         int       inSize,
         Offset    inOffset,
         int       inWriteThreshold,
+        int       theRS_chunk_index = -1, //subrata
         long theStripe_identifier = -1)  //subrata add
     {
         QCASSERT(inOffset >= 0);
@@ -1919,6 +1925,7 @@ Writer::Striper::QueueWrite(
     int             inSize,
     Writer::Offset  inOffset,
     int             inWriteThreshold,
+    int  theRS_chunk_index,                //subrata
     long theStripe_identifier)             //subrata add
 {
     const int theQueuedCount = mOuter.QueueWrite(
@@ -1930,12 +1937,14 @@ Writer::Striper::QueueWrite(
 void
 Writer::Striper::StartQueuedWrite(
     int inQueuedCount,
+    int theRS_chunk_index,
     long theStripe_identifier)
 {
     if (! mWriteQueuedFlag) {
         return;
     }
     mWriteQueuedFlag = false;
+    mOuter.rs_chunk_index = theRS_chunk_index;
     mOuter.stripe_identifier = theStripe_identifier;
     mOuter.StartQueuedWrite(inQueuedCount);
 }

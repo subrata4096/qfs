@@ -147,6 +147,7 @@ struct KfsOp {
     char*    contentBuf;
     string   statusMsg; // optional, mostly for debugging
     long            stripe_identifier;  //subrata added
+    int      rs_chunk_index;  //subrata added
     KfsOp (KfsOp_t o, kfsSeq_t s)
         : op(o),
           seq(s),

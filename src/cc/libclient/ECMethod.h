@@ -69,6 +69,9 @@ public:
             int        inLength,
             void**     inBuffersPtr,
             int const* inMissingStripesIdx) = 0;
+        //subrata add
+        virtual int GetDecodingCoefficients(int inStripeCount, int inRecoveryStripeCount, int* survivors, int lost_device_id, int* coefficients) = 0;
+        //subrata end
         virtual void Release() = 0;
         virtual bool SupportsOneRecoveryStripeRebuild() const = 0;
     protected:

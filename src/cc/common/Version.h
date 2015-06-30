@@ -38,5 +38,9 @@ namespace KFS {
     extern const std::string KFS_BUILD_INFO_STRING;
 }
 
+namespace QFS {
+          extern std::string usePartialDecodingSmartRSRepair;
+}
+
 
 #endif

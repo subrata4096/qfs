@@ -958,7 +958,7 @@ public:
     
     //subrata add
   
-    std::map<long, std::vector<chunkId_t> > stripeIdentifierToChunkIDMap; // a map which keeps the stripe identifier as the key and list of associated chunks as value     
+    std::map<long, std::map<int, chunkId_t> > stripeIdentifierToChunkIDMap; // a map which keeps the stripe identifier as the key and list of associated chunks as value     
     void print_stripeIdentifierToChunkIDMap();
     bool serverSet; //for test
     //subrata end
@@ -2124,6 +2124,11 @@ protected:
 
     //subrata add
     ChunkServerPtr CoordinateTheReplicationProcess(CSMap::Entry& c);
+ 
+   int ChooseRecoverySources(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs);
+   int GetCoefficientsForDecoding(int inStripeCount, int inRecoveryStripeCount, int missingIndex, int* chosenSourceIndexs, std::map<int,int>& decodingCoefficient);
+   int GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex);
+
     //subrata end
 
 

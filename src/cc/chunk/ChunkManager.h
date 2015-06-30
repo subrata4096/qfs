@@ -726,7 +726,7 @@ private:
   
     //subrata add
   
-    std::map<long, std::vector<chunkId_t> > stripeIdentifierToChunkIDMap;
+    std::map<long, std::map<int,chunkId_t> > stripeIdentifierToChunkIDMap;
     
    //subrata end
 
