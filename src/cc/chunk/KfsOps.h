@@ -841,6 +841,41 @@ struct ReplicateChunkOp : public KfsOp {
     }
 };
 
+
+//subrata add
+
+struct PartialRepairOp : public KfsOp {
+
+     std::string stringValue;
+     virtual ostream& ShowSelf(ostream& os) const {
+        return os << stringValue;
+     }
+     void Execute() {};
+     void Response(ostream &os) {};
+
+};
+
+struct DistributedReplicateChunkOp : public ReplicateChunkOp {
+
+      std::list<PartialRepairOp> opSequenceList;
+      std::string theSequenceString;
+
+       virtual ostream& ShowSelf(ostream& os) const {
+        return os << "Nothing";
+     }
+   
+     template<typename T> static T& ParserDef(T& parser)
+     {
+        return ReplicateChunkOp::ParserDef(parser)
+        .Def("Partial-Sequence-String",   &DistributedReplicateChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        ;
+    }
+
+
+};
+
+//subrata end
+
 struct HeartbeatOp : public KfsOp {
     int64_t           metaEvacuateCount; // input
     bool              authenticateFlag;

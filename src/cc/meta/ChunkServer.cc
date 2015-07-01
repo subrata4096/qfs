@@ -1917,7 +1917,89 @@ ChunkServer::MakeChunkStable(fid_t fid, chunkId_t chunkId, seq_t chunkVersion,
     ), sMakeStableTimeout);
     return 0;
 }
+//subrata add
 
+int
+ChunkServer::DistributeRepairInformation(fid_t fid, chunkId_t chunkId, long& stripe_identifier, int& decodeCoeff, std::string& operationSeq,
+    const ChunkServerPtr& dataServer, const ChunkRecoveryInfo& recoveryInfo,
+    MetaChunkReplicate::FileRecoveryInFlightCount::iterator it) 
+{
+   MetaDistributedReplicateChunk* r  = new MetaDistributedReplicateChunk(NextSeq(), shared_from_this(), fid, chunkId,
+        dataServer->GetServerLocation(), decodeCoeff, stripe_identifier, operationSeq, it, dataServer);
+  
+
+  if (recoveryInfo.HasRecovery() ) {
+        r->chunkVersion       = recoveryInfo.version;
+        r->chunkOffset        = recoveryInfo.offset;
+        r->striperType        = recoveryInfo.striperType;
+        r->numStripes         = recoveryInfo.numStripes;
+        r->numRecoveryStripes = recoveryInfo.numRecoveryStripes;
+        r->stripeSize         = recoveryInfo.stripeSize;
+        r->fileSize           = recoveryInfo.fileSize;
+        r->dataServer.reset();
+        r->srcLocation.hostname.clear();
+        r->srcLocation.port = sMetaClientPort;
+    }
+    if (gLayoutManager.IsClientCSAuthRequired()) {
+        r->issuedTime                 = TimeNow();
+        r->validForTime               = (uint32_t)max(0,
+            gLayoutManager.GetCSAccessValidForTime());
+        r->clientCSAllowClearTextFlag =
+            gLayoutManager.IsClientCSAllowClearText();
+        if (mAuthUid == kKfsUserNone) {
+            r->status    = -EFAULT;
+            r->statusMsg = "destination server has invalid id";
+            r->resume();
+            return -EFAULT;
+        }
+        r->authUid  = mAuthUid;
+        r->tokenSeq =
+            (DelegationToken::TokenSeq)gLayoutManager.GetRandom().Rand();
+        if (r->dataServer) {
+            if (! r->dataServer->GetCryptoKey(r->keyId, r->key)) {
+                r->status    = -EFAULT;
+                r->statusMsg = "source has no valid crypto key";
+                r->resume();
+                return -EFAULT;
+                  }
+        } else {
+            const CryptoKeys* const keys = gNetDispatch.GetCryptoKeys();
+            if (! keys || ! keys->GetCurrentKey(
+                    r->keyId, r->key, r->validForTime)) {
+                r->status    = -EFAULT;
+                r->statusMsg = "has no current valid crypto key";
+                r->resume();
+                return -EFAULT;
+            }
+            if (mRecoveryMetaAccess.empty() || mRecoveryMetaAccessEndTime <
+                    r->issuedTime + max(5 * 60, sReplicationTimeout * 2)) {
+                ostringstream& os = GetTmpOStringStream();
+                DelegationToken::WriteTokenAndSessionKey(
+                    os,
+                    r->authUid,
+                    r->tokenSeq,
+                    r->keyId,
+                    r->issuedTime,
+                    DelegationToken::kChunkServerFlag,
+                    r->validForTime,
+                    r->key.GetPtr(),
+                    r->key.GetSize()
+                );
+                mRecoveryMetaAccessEndTime = r->issuedTime + r->validForTime;
+                mRecoveryMetaAccess        = os.str();
+            }
+            r->metaServerAccess = mRecoveryMetaAccess;
+        }
+    } else {
+        r->validForTime = 0;
+    }
+
+ 
+   Enqueue(r, sReplicationTimeout);
+   return 0;
+}
+
+//subrata end
 int
 ChunkServer::ReplicateChunk(fid_t fid, chunkId_t chunkId,
     const ChunkServerPtr& dataServer, const ChunkRecoveryInfo& recoveryInfo,

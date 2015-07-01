@@ -8137,14 +8137,14 @@ void LayoutManager::PrintCoefficientsForDecoding(std::map<int,int>& decodingCoef
    KFS_LOG_STREAM_ERROR << ss.str() << KFS_LOG_EOM;
 }
 
-int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex)
+int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, std::map<int,int>& decodingCoefficient)
 {
         int chosenSourceIndexs[numStripes+1];
 	chosenSourceIndexs[numStripes] = -1; //according to requirements of Jerassure IMPORTANT!!
         
         this->ChooseRecoverySources(stripe_identifier, numStripes, numRecoveryStripes, missingIndex, chosenSourceIndexs);
 
-        std::map<int,int> decodingCoefficient;
+        //std::map<int,int> decodingCoefficient;
 
         this->GetCoefficientsForDecoding(numStripes, numRecoveryStripes, missingIndex,chosenSourceIndexs,decodingCoefficient);
         this->PrintCoefficientsForDecoding(decodingCoefficient);
@@ -8152,7 +8152,7 @@ int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int num
         return 0;
 }
 
-ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c)
+ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, const ChunkRecoveryInfo& recoveryInfo)
 {
        chunkId_t theMissing_chunkId = c.GetChunkId();
        const MetaFattr* const fa = c.GetFattr();
@@ -8209,7 +8209,30 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c)
        KFS_LOG_STREAM_ERROR << ss.str() << KFS_LOG_EOM;
 
 
-      this->GetPartialDecodingInformation(stripe_identifier, fa->numStripes, fa->numRecoveryStripes, theRS_chunk_index_missing);
+      std::map<int,int> decodingCoefficient;
+      this->GetPartialDecodingInformation(stripe_identifier, fa->numStripes, fa->numRecoveryStripes, theRS_chunk_index_missing, decodingCoefficient);
+
+      FileRecoveryInFlightCount::iterator recovIt =  mFileRecoveryInFlightCount.end(); //subrata :  just dummy. I do not know how to use it for
+     
+      fid_t fid = fa->id();
+      
+      vecStart = (stripePos->second).begin();
+      vecEnd = (stripePos->second).end();
+      for(; vecStart != vecEnd; vecStart++)
+      {
+            if(decodingCoefficient.find(vecStart->first) != decodingCoefficient.end())
+            {
+                  int decodingCoeff = decodingCoefficient[vecStart->first];
+                  std::string operationSeq = "ABC##[123]#PQR[123]";
+
+                  Servers srvs = mChunkToServerMap.GetServers(vecStart->second);
+                  Servers::iterator servIterStart = srvs.begin();
+                  ChunkServerPtr sourceChunkServer = *servIterStart;
+ 
+                  sourceChunkServer->DistributeRepairInformation(fid, theMissing_chunkId, stripe_identifier , decodingCoeff, operationSeq,
+                  sourceChunkServer, recoveryInfo, recovIt);  // the object pointer does not do anything useful. Used for NextSeq()
+            }
+      }
 
 
 
@@ -8233,7 +8256,7 @@ LayoutManager::ReplicateChunk(
     }
 
     //subrata add
-     ChunkServerPtr myCS = CoordinateTheReplicationProcess(clli);
+     ChunkServerPtr myCS = CoordinateTheReplicationProcess(clli, recoveryInfo);
     //subrata end
     const MetaFattr* const fa       = clli.GetFattr();
     kfsSTier_t             minSTier = fa->minSTier;

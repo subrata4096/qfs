@@ -1723,6 +1723,7 @@ struct MetaChunkReplicate: public MetaChunkRequest {
     MetaChunkVersChange*                versChange;
     FileRecoveryInFlightCount::iterator recovIt;
     string                              metaServerAccess;
+
     MetaChunkReplicate(seq_t n, const ChunkServerPtr& s,
             fid_t f, chunkId_t c, const ServerLocation& loc,
             const ChunkServerPtr& src, kfsSTier_t minTier, kfsSTier_t maxTier,
@@ -1753,6 +1754,33 @@ struct MetaChunkReplicate: public MetaChunkRequest {
           metaServerAccess()
         {}
     virtual ~MetaChunkReplicate() { assert(! versChange); }
+    virtual void handle();
+    virtual void request(ostream &os);
+    virtual void handleReply(const Properties& prop);
+    virtual ostream& ShowSelf(ostream& os) const;
+};
+
+struct MetaDistributedReplicateChunk : public MetaChunkReplicate {
+    typedef DelegationToken::TokenSeq TokenSeq;
+    typedef map<
+        pair<kfsUid_t, fid_t>,
+        unsigned int,
+        less<pair<kfsUid_t, fid_t> >,
+        StdFastAllocator<pair<const pair<kfsUid_t, fid_t>, unsigned int> >
+    > FileRecoveryInFlightCount;
+
+       int decodeCoeff;
+       long stripe_identifier;
+       std::string operation_sequence_list;
+
+       MetaDistributedReplicateChunk(seq_t n, const ChunkServerPtr& s,
+            fid_t f, chunkId_t c, const ServerLocation& loc, int& decodeCoeff, long& stripe_id, 
+            std::string& opSequence,FileRecoveryInFlightCount::iterator it, const ChunkServerPtr& src):MetaChunkReplicate(n, s, f, c, loc, src, -1,  -1, it),
+            decodeCoeff(decodeCoeff),
+            stripe_identifier(stripe_id),
+            operation_sequence_list(opSequence) 
+   { }
+    virtual ~MetaDistributedReplicateChunk() { assert(! versChange); }
     virtual void handle();
     virtual void request(ostream &os);
     virtual void handleReply(const Properties& prop);

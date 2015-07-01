@@ -412,6 +412,14 @@ public:
     int GetChunkSize(fid_t fid, chunkId_t chunkId,
         seq_t chunkVersion, const string &pathname, bool retryFlag = true);
 
+    /// subrata add
+    /// For distributed and partial replication scheme
+    int DistributeRepairInformation(fid_t fid, chunkId_t chunkId, long& stripe_identifier, int& decodeCoeff, std::string& operationSeq,
+    const ChunkServerPtr& dataServer, const ChunkRecoveryInfo& recoveryInfo,
+    MetaChunkReplicate::FileRecoveryInFlightCount::iterator it);
+    /// subrata end
+
+
     /// Methods to handle (re) replication of a chunk.  If there are
     /// insufficient copies of a chunk, we replicate it.
     int ReplicateChunk(fid_t fid, chunkId_t chunkId,

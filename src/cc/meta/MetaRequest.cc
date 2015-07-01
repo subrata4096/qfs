@@ -5206,6 +5206,128 @@ MetaChunkReplicate::handleReply(const Properties& prop)
     }
 }
 
+//subrata add
+
+/* virtual */ 
+ostream& MetaDistributedReplicateChunk::ShowSelf(ostream& os) const
+{
+     os << "MetaDistributedReplicateChunk";
+     return os;
+}
+void
+MetaDistributedReplicateChunk::handle()
+{
+}
+
+void
+MetaDistributedReplicateChunk::request(ostream& os)
+{
+    ostringstream& rs = GetTmpOStringStream();
+    rs <<
+    "Cseq: "          << opSeqno      << "\r\n"
+    "Version: KFS/1.0\r\n"
+    "File-handle: "   << fid          << "\r\n"
+    "Chunk-handle: "  << chunkId      << "\r\n"
+    "Decoding-coefficient: "  << decodeCoeff    << "\r\n"
+    "STRIPE-IDENTIFIER: "  << stripe_identifier    << "\r\n"
+    "Operation-sequence-list: "  << operation_sequence_list << "\r\n"
+
+    "Min-tier: "      << (int)minSTier << "\r\n"
+    "Max-tier: "      << (int)maxSTier << "\r\n"
+    ;
+    if (numRecoveryStripes > 0) {
+        rs <<
+        "Chunk-version: 0\r\n"
+        "Chunk-offset: "         << chunkOffset          << "\r\n"
+        "Striper-type: "         << striperType          << "\r\n"
+        "Num-stripes: "          << numStripes           << "\r\n"
+        "Num-recovery-stripes: " << numRecoveryStripes   << "\r\n"
+        "Stripe-size: "          << stripeSize           << "\r\n"
+        "Meta-port: "            << srcLocation.port     << "\r\n"
+        "Target-version: "       << chunkVersion         << "\r\n"
+        ;
+        if (fileSize > 0) {
+            rs << "File-size: " << fileSize << "\r\n";
+        }
+    } else {
+        //subrata: Note: For RS (Reed-Solomon) source location is not specified
+        rs << "Chunk-location: " << srcLocation << "\r\n";
+    }
+    if (0 < validForTime) {
+        if (clientCSAllowClearTextFlag) {
+            rs << "CS-clear-text: 1\r\n";
+        }
+        if (dataServer) {
+            rs << "CS-access: ";
+            DelegationToken::WriteTokenAndSessionKey(
+                rs,
+                authUid,
+                tokenSeq,
+                keyId,
+                issuedTime,
+                DelegationToken::kChunkServerFlag,
+                validForTime,
+                key.GetPtr(),
+                key.GetSize()
+            );
+            rs << "\r\n"
+                "C-access: ";
+        ChunkAccessToken::WriteToken(
+                rs,
+                chunkId,
+                authUid,
+                tokenSeq,
+                keyId,
+                issuedTime,
+                ChunkAccessToken::kAllowReadFlag |
+                    DelegationToken::kChunkServerFlag |
+                    (clientCSAllowClearTextFlag ?
+                        ChunkAccessToken::kAllowClearTextFlag : 0),
+                LEASE_INTERVAL_SECS * 2,
+                key.GetPtr(),
+                key.GetSize()
+            );
+        } else {
+            rs << "CS-access: ";
+            if (metaServerAccess.empty()) {
+                DelegationToken::WriteTokenAndSessionKey(
+                    rs,
+                    authUid,
+                    tokenSeq,
+                    keyId,
+                    issuedTime,
+                    DelegationToken::kChunkServerFlag,
+                    validForTime,
+                    key.GetPtr(),
+                    key.GetSize()
+                );
+            } else {
+                rs.write(metaServerAccess.data(), metaServerAccess.size());
+            }
+        }
+        rs << "\r\n";
+    }
+    rs << "\r\n";
+    const string req = rs.str();
+    //subrata : the replication command is "REPLICATE"
+    KFS_LOG_STREAM_ERROR << "subrata: metaserver is about to send replication instruiction to chunkserver from meta/MetaRequest.cc line 5126" << KFS_LOG_EOM;
+    os << sReplicateCmdName << " " << Checksum(
+        sReplicateCmdName.data(),
+        sReplicateCmdName.size(),
+        req.data(),
+        req.size()) <<
+    "\r\n";
+    os.write(req.data(), req.size());
+
+}
+void
+MetaDistributedReplicateChunk::handleReply(const Properties& prop)
+{
+}
+
+//subrata end
+
+
 void
 MetaChunkSize::request(ostream &os)
 {
