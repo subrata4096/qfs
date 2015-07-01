@@ -37,6 +37,7 @@
 #include "meta.h"
 #include "ChunkServer.h"
 #include "UserAndGroup.h"
+#include "libclient/ECMethod.h"
 
 #include "kfsio/Counter.h"
 #include "common/Properties.h"
@@ -2127,6 +2128,8 @@ protected:
  
    int ChooseRecoverySources(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs);
    int GetCoefficientsForDecoding(int inStripeCount, int inRecoveryStripeCount, int missingIndex, int* chosenSourceIndexs, std::map<int,int>& decodingCoefficient);
+   void PrintCoefficientsForDecoding(std::map<int,int>& decodingCoefficient);
+
    int GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex);
 
     //subrata end
@@ -2298,7 +2301,7 @@ protected:
     inline Servers::const_iterator FindServerByHost(const T& host) const;
     
     void SetRSJerrasureDecoder();
-    ECMethod::Decoder* JerrasureDecoderPtr;
+    KFS::client::ECMethod::Decoder* JerrasureDecoderPtr;
 };
 
 extern LayoutManager& gLayoutManager;

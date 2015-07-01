@@ -70,7 +70,7 @@ public:
             void**     inBuffersPtr,
             int const* inMissingStripesIdx) = 0;
         //subrata add
-        virtual int GetDecodingCoefficients(int inStripeCount, int inRecoveryStripeCount, int* survivors, int lost_device_id, int* coefficients) = 0;
+        virtual int GetDecodingCoefficients(int inStripeCount, int inRecoveryStripeCount, int* survivors, int lost_device_id, int* coefficients);
         //subrata end
         virtual void Release() = 0;
         virtual bool SupportsOneRecoveryStripeRebuild() const = 0;
@@ -109,10 +109,15 @@ public:
 protected:
     ECMethod();
     virtual ~ECMethod();
+public:                  //subrata
     bool Register(
         int inMethodType);
     void Unregister(
         int inMethodType);
+    //subrata add
+    static ECMethod* Get_QCECMethodJerasure_Ptr();
+    //subrata end
+protected:                   //subrata
     virtual bool Init(
         int inMethodType) = 0;
     virtual void Release(

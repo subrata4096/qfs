@@ -234,4 +234,10 @@ ECMethod::InitAllSelf()
     return sMethodCount;
 }
 
+int ECMethod::Decoder::GetDecodingCoefficients(int inStripeCount, int inRecoveryStripeCount, int* survivors, int lost_device_id, int* coefficients)
+{
+      //dummy
+      assert(0);
+}
+
 }} /* namespace client KFS */

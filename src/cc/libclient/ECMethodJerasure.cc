@@ -58,6 +58,7 @@ using std::less;
 using std::pair;
 using std::make_pair;
 
+
 class QCECMethodJerasure : public ECMethod
 {
 public:
@@ -177,7 +178,7 @@ private:
             );
         }
         //subrata add
-        virtual int GetDecodingCoefficients(int inStripeCount, int inRecoveryStripeCount, int* survivors, int lost_device_id, int* coefficients);
+        virtual int GetDecodingCoefficients(int inStripeCount, int inRecoveryStripeCount, int* survivors, int lost_device_id, int* coefficients)
         {
             return jerasure_get_decoding_coefficients_for_survivors_and_particular_erasure(inStripeCount,inRecoveryStripeCount,
                                                                                             mW,mMatrixPtr,survivors,lost_device_id,coefficients);
@@ -397,6 +398,13 @@ protected:
 KFS_REGISTER_EC_METHOD(STRIPED_FILE_TYPE_RS_JERASURE,
     QCECMethodJerasure::GetMethod()
 );
+//subrata add
+//static
+ECMethod* ECMethod::Get_QCECMethodJerasure_Ptr()
+{
+    return QCECMethodJerasure::GetMethod();
+}
+//subrata end
 
 #endif /* QFS_OMIT_JERASURE */
 }} /* namespace client KFS */

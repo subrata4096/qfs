@@ -31,6 +31,7 @@
 #include "kfstree.h"
 #include "ClientSM.h"
 #include "NetDispatch.h"
+#include "libclient/ECMethod.h"
 
 #include "kfsio/Globals.h"
 #include "kfsio/IOBuffer.h"
@@ -8096,10 +8097,14 @@ int LayoutManager::ChooseRecoverySources(long stripe_identifier, int numStripes,
 //decodingCoefficient is map between rs_chunk_index and its corresponding coefficient appropriately calculated based on whether it is a data or parity chunk
 // the reconstruction is simple: erasureChunk = Sum(coeff * rs_chunk) => which will be implemented through partial distributed decoding 
 
-int LayoutManager::SetRSJerrasureDecoder()
+void LayoutManager::SetRSJerrasureDecoder()
 {
   std::string outErrMsg;
-  this->JerrasureDecoderPtr =  ECMethod::FindDecoder(
+  
+  KFS::client::ECMethod* ecm = KFS::client::ECMethod::Get_QCECMethodJerasure_Ptr();
+  ecm->Register(3);
+
+  this->JerrasureDecoderPtr =  KFS::client::ECMethod::FindDecoder(
                                            3 /*inType=Jerassure*/, 6 /*inStripeCount*/, 3 /*inRecoveryStripeCount*/, &outErrMsg);
 
   assert(this->JerrasureDecoderPtr);  
@@ -8108,9 +8113,9 @@ int LayoutManager::SetRSJerrasureDecoder()
 
 int LayoutManager::GetCoefficientsForDecoding(int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs, std::map<int,int>& decodingCoefficient)  
 {
-    int coefficients[inStripeCount];
+    int coefficients[numStripes];
 
-    this->JerrasureDecoderPtr->GetDecodingCoefficients(inStripeCount, inRecoveryStripeCount, chosenSourceIndexs, missingIndex , coefficients);
+    this->JerrasureDecoderPtr->GetDecodingCoefficients(numStripes, numRecoveryStripes, chosenSourceIndexs, missingIndex , coefficients);
 
    for(int i = 0 ; i < numStripes ; i++)
    { 
@@ -8118,6 +8123,18 @@ int LayoutManager::GetCoefficientsForDecoding(int numStripes, int numRecoveryStr
    }   
 
     return 0;
+}
+void LayoutManager::PrintCoefficientsForDecoding(std::map<int,int>& decodingCoefficient)
+{
+   #include <sstream>
+   std::stringstream ss;
+   std::map<int,int>::iterator ii =  decodingCoefficient.begin();
+   std::map<int,int>::iterator jj =  decodingCoefficient.end();
+   for(; ii != jj ; ii++)
+   {
+        ss << ii->first << " => coeff: " << ii->second << " , " ;
+   }
+   KFS_LOG_STREAM_ERROR << ss.str() << KFS_LOG_EOM;
 }
 
 int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex)
@@ -8127,8 +8144,12 @@ int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int num
         
         this->ChooseRecoverySources(stripe_identifier, numStripes, numRecoveryStripes, missingIndex, chosenSourceIndexs);
 
-         std::map<int,int> decodingCoefficient;
-        this->GetCoefficientsForDecoding(inStripeCount, inRecoveryStripeCount, missingIndex,chosenSourceIndexs,decodingCoefficient);
+        std::map<int,int> decodingCoefficient;
+
+        this->GetCoefficientsForDecoding(numStripes, numRecoveryStripes, missingIndex,chosenSourceIndexs,decodingCoefficient);
+        this->PrintCoefficientsForDecoding(decodingCoefficient);
+
+        return 0;
 }
 
 ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c)

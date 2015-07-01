@@ -51,7 +51,7 @@ add_library (kfsMeta STATIC ${lib_srcs})
 set_target_properties (kfsMeta PROPERTIES OUTPUT_NAME "qfs_meta")
 set_target_properties (kfsMeta PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 target_link_libraries(kfsMeta
-    kfsIO
+    kfsIO kfsClient
 )
 
 if (NOT USE_STATIC_LIB_LINKAGE)
@@ -59,7 +59,7 @@ if (NOT USE_STATIC_LIB_LINKAGE)
     set_target_properties (kfsMeta-shared PROPERTIES OUTPUT_NAME "qfs_meta")
     set_target_properties (kfsMeta-shared PROPERTIES CLEAN_DIRECT_OUTPUT 1)
     target_link_libraries(kfsMeta-shared
-        kfsIO-shared
+        kfsIO-shared kfsClient-shared
     )
     install (TARGETS kfsMeta-shared
         RUNTIME DESTINATION bin
@@ -75,10 +75,12 @@ foreach (exe_file ${exe_files})
         )
         target_link_libraries (${exe_file}
             kfsMeta
+            kfsClient                   #subrata
             tools
         )
         add_dependencies (${exe_file}
             kfsMeta
+            kfsClient                   #subrata
             tools
         )
     else (USE_STATIC_LIB_LINKAGE)
@@ -87,10 +89,12 @@ foreach (exe_file ${exe_files})
         )
         target_link_libraries (${exe_file}
             kfsMeta-shared
+            kfsClient-shared            #subrata
             tools-shared
         )
         add_dependencies (${exe_file}
             kfsCommon-shared
+            kfsClient-shared             #subrata
             tools-shared
         )
     endif (USE_STATIC_LIB_LINKAGE)
