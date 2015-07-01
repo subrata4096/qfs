@@ -140,7 +140,7 @@ int main(int argc, char **argv)
   printf("<pre>\n");
 
   printf("Last m rows of the generator matrix (G^T):\n\n");
-  jerasure_print_matrix(matrix, m, k, w);
+  jerasure_print_matrix(matrix, m, k, w,NULL);
   printf("\n");
 
   data = talloc(char *, k);

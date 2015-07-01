@@ -86,7 +86,7 @@ int main(int argc, char **argv)
   printf("</h3>\n");
   printf("<pre>\n");
 
-  jerasure_print_matrix(matrix, r, c, w);
+  jerasure_print_matrix(matrix, r, c, w,NULL);
   return 0;
 }
 

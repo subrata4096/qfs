@@ -198,6 +198,18 @@ int jerasure_schedule_decode_lazy(int k, int m, int w, int *bitmatrix, int *eras
 int jerasure_schedule_decode_cache(int k, int m, int w, int ***scache, int *erasures,
                             char **data_ptrs, char **coding_ptrs, int size, int packetsize);
 
+//subrata start : new functions for partial decoding. some will be called by the MetaServer, some by ChunkServers
+int jerasure_get_decoding_coefficients_for_survivors_and_particular_erasure(int k, int m, int w,
+                            int *encoding_matrix, int *survivors, int lost_device_id, int* coefficients);
+
+int jerasure_make_custom_decoding_matrix(int k, int m, int w, int *matrix, int *decoding_matrix, int *dm_ids);
+
+int jerasure_partial_decode_multiply_and_add(int w, int size, int multCoeff, char* sptr, char* dptr, int xorWithDstAfterMultiply);
+int jerasure_partial_decode_add(int w, int size, char* sptr, char* dptr);
+int jerasure_partial_decode_multiply(int w, int size, int multCoeff, char* sptr, char* dptr);
+
+//subrata end
+
 int jerasure_make_decoding_matrix(int k, int m, int w, int *matrix, int *erased, 
                                   int *decoding_matrix, int *dm_ids);
 
@@ -273,7 +285,7 @@ int jerasure_invertible_bitmatrix(int *mat, int rows);
    validated by the procedure.  
 */
 
-void jerasure_print_matrix(int *matrix, int rows, int cols, int w);
+void jerasure_print_matrix(int *matrix, int rows, int cols, int w, char* fname);
 void jerasure_print_bitmatrix(int *matrix, int rows, int cols, int w);
 
 

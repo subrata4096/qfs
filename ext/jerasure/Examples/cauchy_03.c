@@ -164,7 +164,7 @@ int main(int argc, char **argv)
   printf("Here is the matrix, which was created with <b>cauchy_xy_coding_matrix()</b>.\n");
 
   printf("<pre>\n");
-  jerasure_print_matrix(matrix, m, k, w);
+  jerasure_print_matrix(matrix, m, k, w,NULL);
   printf("</pre>\n");
 
   cauchy_improve_coding_matrix(k, m, w, matrix);
@@ -173,7 +173,7 @@ int main(int argc, char **argv)
   printf("Here is the matrix improved with <b>cauchy_improve_coding_matrix()</b>.\n");
 
   printf("<pre>\n");
-  jerasure_print_matrix(matrix, m, k, w);
+  jerasure_print_matrix(matrix, m, k, w, NULL);
   printf("</pre>\n");
 
   bitmatrix = jerasure_matrix_to_bitmatrix(k, m, w, matrix);

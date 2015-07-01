@@ -145,7 +145,7 @@ int main(int argc, char **argv)
   printf("<pre>\n");
 
   printf("The Coding Matrix (the last m rows of the Generator Matrix G^T):\n\n");
-  jerasure_print_matrix(matrix, m, k, w);
+  jerasure_print_matrix(matrix, m, k, w,NULL);
   printf("\n");
 
   MOA_Seed(seed);
@@ -197,10 +197,10 @@ int main(int argc, char **argv)
   jerasure_make_decoding_matrix(k, m, w, matrix, erased, decoding_matrix, dm_ids);
 
   printf("Suppose we erase the first %d devices.  Here is the decoding matrix:\n\n", m);
-  jerasure_print_matrix(decoding_matrix, k, k, w);
+  jerasure_print_matrix(decoding_matrix, k, k, w,NULL);
   printf("\n");
   printf("And dm_ids:\n\n");
-  jerasure_print_matrix(dm_ids, 1, k, w);
+  jerasure_print_matrix(dm_ids, 1, k, w,NULL);
 
   bzero(data[0], size);
   jerasure_matrix_dotprod(k, w, decoding_matrix, dm_ids, 0, data, coding, size);

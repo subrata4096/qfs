@@ -101,7 +101,7 @@ int main(int argc, char **argv)
   printf("<pre>\n");
 
   printf("The Cauchy Matrix:\n");
-  jerasure_print_matrix(matrix, k, k, w);
+  jerasure_print_matrix(matrix, k, k, w,NULL);
   memcpy(matrix_copy, matrix, sizeof(int)*k*k);
   i = jerasure_invertible_matrix(matrix_copy, k, w);
   printf("\nInvertible: %s\n", (i == 1) ? "Yes" : "No");
@@ -109,10 +109,10 @@ int main(int argc, char **argv)
     printf("\nInverse:\n");
     memcpy(matrix_copy, matrix, sizeof(int)*k*k);
     i = jerasure_invert_matrix(matrix_copy, inverse, k, w);
-    jerasure_print_matrix(inverse, k, k, w);
+    jerasure_print_matrix(inverse, k, k, w,NULL);
     identity = jerasure_matrix_multiply(inverse, matrix, k, k, k, k, w);
     printf("\nInverse times matrix (should be identity):\n");
-    jerasure_print_matrix(identity, k, k, w);
+    jerasure_print_matrix(identity, k, k, w,NULL);
   }
   return 0;
 }

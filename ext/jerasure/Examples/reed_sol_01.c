@@ -130,7 +130,7 @@ int main(int argc, char **argv)
   printf("<h3>reed_sol_01 %d %d %d %d</h3>\n", k, m, w, seed);
   printf("<pre>\n");
   printf("Last m rows of the generator Matrix (G^T):\n\n");
-  jerasure_print_matrix(matrix, m, k, w);
+  jerasure_print_matrix(matrix, m, k, w,NULL);
   printf("\n");
 
   MOA_Seed(seed);

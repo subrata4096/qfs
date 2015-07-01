@@ -207,7 +207,7 @@ int main(int argc, char **argv)
   jerasure_print_bitmatrix(decoding_matrix, k*w, k*w, w);
   printf("</pre>\n");
   printf("And dm_ids:\n<pre>\n");
-  jerasure_print_matrix(dm_ids, 1, k, w);
+  jerasure_print_matrix(dm_ids, 1, k, w,NULL);
   printf("</pre><hr>\n");
 
   for (i = 0; i < x; i++) bzero(data[i], w*psize);

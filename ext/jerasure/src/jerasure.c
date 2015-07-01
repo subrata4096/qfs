@@ -57,7 +57,7 @@ static double jerasure_total_xor_bytes = 0;
 static double jerasure_total_gf_bytes = 0;
 static double jerasure_total_memcpy_bytes = 0;
 
-void jerasure_print_matrix(int *m, int rows, int cols, int w)
+void jerasure_print_matrix(int *m, int rows, int cols, int w,char* fname)
 {
   int i, j;
   int fw;
@@ -71,13 +71,19 @@ void jerasure_print_matrix(int *m, int rows, int cols, int w)
     sprintf(s, "%u", w2-1);
     fw = strlen(s);
   }
-
+  FILE* fd = NULL;
+  if(fname != NULL)
+  {
+     fd = fopen(fname,"w");
+  }
   for (i = 0; i < rows; i++) {
     for (j = 0; j < cols; j++) {
       if (j != 0) printf(" ");
       printf("%*u", fw, m[i*cols+j]); 
+      if(fd) { fprintf(fd,"%*u", fw, m[i*cols+j]); }
     }
     printf("\n");
+    if(fd) { fprintf(fd,"\n"); }
   }
 }
 
@@ -94,6 +100,58 @@ void jerasure_print_bitmatrix(int *m, int rows, int cols, int w)
     printf("\n");
   }
 }
+
+//subrata :  creating custom decoding matrix for partial decoding. Basically we will pick which devices to use as survivors
+//subrata: this will be called by the meta server while distributing the coefficients
+int jerasure_make_custom_decoding_matrix(int k, int m, int w, int *matrix, int *decoding_matrix, int *dm_ids)
+{
+  int i, j, *tmpmat;
+  
+     tmpmat = talloc(int, k*k);
+  if (tmpmat == NULL) { return -1; }
+  for (i = 0; i < k; i++) {
+    if (dm_ids[i] < k) {
+      for (j = 0; j < k; j++) tmpmat[i*k+j] = 0;
+      tmpmat[i*k+dm_ids[i]] = 1;
+    } else {
+      for (j = 0; j < k; j++) {
+        tmpmat[i*k+j] = matrix[(dm_ids[i]-k)*k+j];
+      }
+    }
+  }
+
+  i = jerasure_invert_matrix(tmpmat, decoding_matrix, k, w);
+  free(tmpmat);
+  return i;
+}
+
+//subrata : This routine will return a matrxi filled with coefficients which should be multiplied and xored with the srcData to recosntruct the erasured data
+//subrata :  this is targeted for ONLY ONE erasure
+//subrata:  ideally will be called by the meta server
+//subrata:  Performs two different kinds of operation depending on whether a parity was lossed or data was lost
+
+int jerasure_get_decoding_coefficients_for_survivors_and_particular_erasure(int k, int m, int w, int *encoding_matrix, int *survivors, int lost_device_id, int* coefficients)
+{    
+      int ret;
+      int *decoding_matrix; 
+     
+      if(lost_device_id <  k)
+      {
+            // a data device was lost. Do data recosntruction
+           decoding_matrix = talloc(int, k*k);
+           ret = jerasure_make_custom_decoding_matrix(k, m, w, encoding_matrix, decoding_matrix, survivors);
+           memcpy(coefficients, decoding_matrix+(lost_device_id * k) , k*sizeof(int));
+           free(decoding_matrix);
+           return 0;
+           
+      }
+      else
+      {
+           // a parity device was lost. Do reconstruction of parity by just encoding it again... return encoding coeffs..
+           memcpy(coefficients, encoding_matrix+( (lost_device_id - k) * k) , k*sizeof(int)); //remember, encoding_matrix is only k*m => last m rows of distribution matrix
+      }
+}
+
 
 int jerasure_make_decoding_matrix(int k, int m, int w, int *matrix, int *erased, int *decoding_matrix, int *dm_ids)
 {
@@ -164,9 +222,47 @@ int jerasure_make_decoding_bitmatrix(int k, int m, int w, int *matrix, int *eras
   return i;
 }
 
+//subrata: Implemented for partial decoding support
+//ChunkServers are going to call this routine to partial decode and send
+//xorWithDstAfterMultiply = 1 will be 
+int jerasure_partial_decode_multiply_and_add(int w, int size, int multCoeff, char* sptr, char* dptr, int xorWithDstAfterMultiply)
+{
+  switch (w) {
+        //subrata: when xorWithDstAfterMultiply != 0, it will keep on adding(XOR) to dptr after multiply
+        case 8:  galois_w08_region_multiply(sptr, multCoeff, size, dptr, xorWithDstAfterMultiply); break; 
+        case 16: galois_w16_region_multiply(sptr, multCoeff, size, dptr, xorWithDstAfterMultiply); break;
+        case 32: galois_w32_region_multiply(sptr, multCoeff, size, dptr, xorWithDstAfterMultiply); break;
+      } 
+   
+}
+
+int jerasure_partial_decode_add(int w, int size, char* sptr, char* dptr)
+{
+  switch (w) {
+        //subrata: when xorWithDstAfterMultiply != 0, it will keep on adding(XOR) to dptr after multiply
+        case 8:  galois_w08_region_multiply(sptr, 1, size, dptr, 1); break; 
+        case 16: galois_w16_region_multiply(sptr, 1, size, dptr, 1); break;
+        case 32: galois_w32_region_multiply(sptr, 1, size, dptr, 1); break;
+      } 
+}
+int jerasure_partial_decode_multiply(int w, int size, int multCoeff, char* sptr, char* dptr)
+{
+  switch (w) {
+        //subrata: when xorWithDstAfterMultiply != 0, it will keep on adding(XOR) to dptr after multiply
+        case 8:  galois_w08_region_multiply(sptr, multCoeff, size, dptr, 0); break; 
+        case 16: galois_w16_region_multiply(sptr, multCoeff, size, dptr, 0); break;
+        case 32: galois_w32_region_multiply(sptr, multCoeff, size, dptr, 0); break;
+      } 
+}
+
+//subrata: Meta servers are going to call these routines
+
 int jerasure_matrix_decode(int k, int m, int w, int *matrix, int row_k_ones, int *erasures,
                           char **data_ptrs, char **coding_ptrs, int size)
 {
+
+   // subrata: NOTE: *matrix => This is an array with k*m elements that represents the coding matrix i.e. the last m rows of the distribution matrix.
+   //subrata: refer to doc: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.114.6999&rep=rep1&type=pdf
   int i, edd, lastdrive;
   int *tmpids;
   int *erased, *decoding_matrix, *dm_ids;
@@ -227,6 +323,11 @@ int jerasure_matrix_decode(int k, int m, int w, int *matrix, int row_k_ones, int
       return -1;
     }
   }
+  
+  //printf("subrata: decoding matrix is : \n");
+  //char* fname1 = "/home/mitra/decode_mat.txt";
+  char* fname1 = NULL;
+  jerasure_print_matrix(decoding_matrix,k,k,w,fname1);
 
   /* Decode the data drives.  
      If row_k_ones is true and coding device 0 is intact, then only decode edd-1 drives.
@@ -236,10 +337,15 @@ int jerasure_matrix_decode(int k, int m, int w, int *matrix, int row_k_ones, int
 
   for (i = 0; edd > 0 && i < lastdrive; i++) {
     if (erased[i]) {
+      //printf("subrata: dot product for device = %d\n",i);
       jerasure_matrix_dotprod(k, w, decoding_matrix+(i*k), dm_ids, i, data_ptrs, coding_ptrs, size);
       edd--;
     }
   }
+  //printf("subrata: encoding matrix is : \n");
+  //char* fname2 = "/home/mitra/encode_mat.txt";
+  char* fname2 = NULL;
+  jerasure_print_matrix(decoding_matrix,(k+m),k,w,fname2);
 
   /* Then if necessary, decode drive lastdrive */
 
@@ -629,8 +735,10 @@ void jerasure_matrix_dotprod(int k, int w, int *matrix_row,
       } else {
         sptr = coding_ptrs[src_ids[i]-k];
       }
+     //subrata: refer to doc: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.114.6999&rep=rep1&type=pdf
+      //printf("The sptr = %s ,  matrix_row[%d] = %d and resultatnt dptr = %s \n", sptr,i,matrix_row[i], dptr);
       switch (w) {
-        case 8:  galois_w08_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
+        case 8:  galois_w08_region_multiply(sptr, matrix_row[i], size, dptr, init); break; //subrata: when init != 0, it will keep on adding(XOR) to dptr after multiply
         case 16: galois_w16_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
         case 32: galois_w32_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
       }

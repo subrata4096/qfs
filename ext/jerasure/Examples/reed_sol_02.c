@@ -86,17 +86,17 @@ int main(int argc, char **argv)
   printf("<h3>reed_sol_02 %d %d %d</h3>\n", k, m, w);
   printf("<pre>\n");
   printf("Extended Vandermonde Matrix:\n\n");
-  jerasure_print_matrix(matrix, k+m, k, w);
+  jerasure_print_matrix(matrix, k+m, k, w,NULL);
   printf("\n");
 
   matrix = reed_sol_big_vandermonde_distribution_matrix(k+m, k, w);
   printf("Vandermonde Generator Matrix (G^T):\n\n");
-  jerasure_print_matrix(matrix, k+m, k, w);
+  jerasure_print_matrix(matrix, k+m, k, w,NULL);
   printf("\n");
 
   matrix = reed_sol_vandermonde_coding_matrix(k, m, w);
   printf("Vandermonde Coding Matrix:\n\n");
-  jerasure_print_matrix(matrix, m, k, w);
+  jerasure_print_matrix(matrix, m, k, w,NULL);
   printf("\n");
 
   

@@ -156,7 +156,7 @@ int main(int argc, char **argv)
   printf("of <b>cauchy_original_coding_matrix()</b>.  For the best matrix and encoding/decoding\n");
   printf("methodology, see <b>cauchy_04.</b><p><pre>\n");
 
-  jerasure_print_matrix(matrix, m, k, w);
+  jerasure_print_matrix(matrix, m, k, w,NULL);
   printf("</pre>\n");
 
   bitmatrix = jerasure_matrix_to_bitmatrix(k, m, w, matrix);

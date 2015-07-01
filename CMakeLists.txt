@@ -86,6 +86,7 @@ ELSE (${CMAKE_MAJOR_VERSION} EQUAL 2 AND ${CMAKE_MINOR_VERSION} LESS 8)
 ENDIF (${CMAKE_MAJOR_VERSION} LESS 2)
 
 IF (HAS_EXTERNAL_PROJECT AND NOT QFS_OMIT_JERASURE)
+    message(STATUS "WARNING: Subrata: Jerasure is being compiled")
     # gf-complete autoconf overrides CFGLAGS. Use CPPFLAGS to add compiler flags.
     include(ExternalProject)
     IF (KFS_DIR_PREFIX STREQUAL "")
