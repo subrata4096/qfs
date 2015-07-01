@@ -1520,6 +1520,11 @@ LayoutManager::LayoutManager() :
         mTiersTotalWritableDrivesMult[i]    = 0.;
         mTierCandidatesCount[i]             = 0;
     }
+
+   //subrata add
+   //set the Jerrasure decoder pointer here... only one time per LayoutManager instance
+   SetRSJerrasureDecoder();
+   //subrata end
 }
 
 LayoutManager::~LayoutManager()
@@ -8091,11 +8096,26 @@ int LayoutManager::ChooseRecoverySources(long stripe_identifier, int numStripes,
 //decodingCoefficient is map between rs_chunk_index and its corresponding coefficient appropriately calculated based on whether it is a data or parity chunk
 // the reconstruction is simple: erasureChunk = Sum(coeff * rs_chunk) => which will be implemented through partial distributed decoding 
 
+int LayoutManager::SetRSJerrasureDecoder()
+{
+  std::string outErrMsg;
+  this->JerrasureDecoderPtr =  ECMethod::FindDecoder(
+                                           3 /*inType=Jerassure*/, 6 /*inStripeCount*/, 3 /*inRecoveryStripeCount*/, &outErrMsg);
+
+  assert(this->JerrasureDecoderPtr);  
+
+}
+
 int LayoutManager::GetCoefficientsForDecoding(int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs, std::map<int,int>& decodingCoefficient)  
 {
     int coefficients[inStripeCount];
 
-    GetDecodingCoefficients(inStripeCount, inRecoveryStripeCount, chosenSourceIndexs, missingIndex , coefficients);
+    this->JerrasureDecoderPtr->GetDecodingCoefficients(inStripeCount, inRecoveryStripeCount, chosenSourceIndexs, missingIndex , coefficients);
+
+   for(int i = 0 ; i < numStripes ; i++)
+   { 
+        decodingCoefficient[chosenSourceIndexs[i]] = coefficients[i];
+   }   
 
     return 0;
 }

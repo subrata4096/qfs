@@ -2296,6 +2296,9 @@ protected:
     inline Servers::const_iterator FindServer(const ServerLocation& loc) const;
     template<typename T>
     inline Servers::const_iterator FindServerByHost(const T& host) const;
+    
+    void SetRSJerrasureDecoder();
+    ECMethod::Decoder* JerrasureDecoderPtr;
 };
 
 extern LayoutManager& gLayoutManager;
