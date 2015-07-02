@@ -5208,6 +5208,7 @@ MetaChunkReplicate::handleReply(const Properties& prop)
 
 //subrata add
 
+static const string sReplicateDistributedCmdName("REPLICATEDISTRIBUTED");
 /* virtual */ 
 ostream& MetaDistributedReplicateChunk::ShowSelf(ostream& os) const
 {
@@ -5309,11 +5310,11 @@ MetaDistributedReplicateChunk::request(ostream& os)
     }
     rs << "\r\n";
     const string req = rs.str();
-    //subrata : the replication command is "REPLICATE"
-    KFS_LOG_STREAM_ERROR << "subrata: metaserver is about to send replication instruiction to chunkserver from meta/MetaRequest.cc line 5126" << KFS_LOG_EOM;
-    os << sReplicateCmdName << " " << Checksum(
-        sReplicateCmdName.data(),
-        sReplicateCmdName.size(),
+    //subrata : the replication command is "REPLICATEDISTRIBUTE"
+    KFS_LOG_STREAM_ERROR << "subrata: metaserver is distributing the coeffcients and task-list for distributed/partial repair" << KFS_LOG_EOM;
+    os << sReplicateDistributedCmdName << " " << Checksum(
+        sReplicateDistributedCmdName.data(),
+        sReplicateDistributedCmdName.size(),
         req.data(),
         req.size()) <<
     "\r\n";

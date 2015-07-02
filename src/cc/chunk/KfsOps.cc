@@ -650,6 +650,7 @@ MakeMetaRequestHandler()
     .MakeParser<DeleteChunkOp           >("DELETE")
     .MakeParser<TruncateChunkOp         >("TRUNCATE")
     .MakeParser<ReplicateChunkOp        >("REPLICATE")
+    .MakeParser<DistributedReplicateChunkOp        >("REPLICATEDISTRIBUTED")
     .MakeParser<HeartbeatOp             >("HEARTBEAT")
     .MakeParser<StaleChunksOp           >("STALE_CHUNKS")
     .MakeParser<ChangeChunkVersOp       >("CHUNK_VERS_CHANGE")
@@ -1347,6 +1348,58 @@ ReplicateChunkOp::Execute()
 {
     Replicator::Run(this);
 }
+
+
+//subrata add
+
+void
+DistributedReplicateChunkOp::Execute()
+{
+    KFS_LOG_STREAM_ERROR << "Chunk-id=" << this->chunkId << " , stripe_identifier="<< this->stripe_identifier << " , decoding_coefficient=" << this->decoding_coefficient << KFS_LOG_EOM;
+ 
+   std::vector<std::string> sourceServerVector; 
+   //Now try to send a message to the othe chunk servers
+   std::vector<std::string> :: iterator ii = sourceServerVector.begin();
+   std::vector<std::string> :: iterator jj = sourceServerVector.end();
+   for( ; ii != jj ; ii++ )
+   {
+      const bool kConnectFlag = true;
+      const bool kKeyIsNotEncryptedFlag = true;
+      char* token;
+      int tokenLen = -1;
+      char* key;
+      int keyLen = -1;
+      const bool theConnectFlag              =
+                gClientManager.GetMutexPtr() == 0;
+      const bool theForceUseClientThreadFlag = ! theConnectFlag;
+
+      std::string hostname = "localhost";
+      int port = 1234;
+      ServerLocation peerServerLoc(hostname, port);
+
+      RemoteSyncSMPtr peer = RemoteSyncSM::Create(
+                peerServerLoc,
+                token,
+                tokenLen,
+                key,
+                keyLen,
+                kKeyIsNotEncryptedFlag,
+                this->allowCSClearTextFlag,
+                this->status,
+                this->statusMsg,
+                theConnectFlag,
+                theForceUseClientThreadFlag);
+     
+    //Enqueue a KfsOp on for the Peer may be. This Op will be like a get request for chunk. Will also have the temporal ordering id
+    //peer->Enqueue(KfsOp* op);
+
+    //The response will be handed by RemoteSyncSM::HandleResponse   -- but do not know how to handle that yet..
+
+   }
+
+}
+
+//subrata end
 
 void
 BeginMakeChunkStableOp::Execute()

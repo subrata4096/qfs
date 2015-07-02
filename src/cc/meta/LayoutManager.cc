@@ -8228,7 +8228,9 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                   Servers srvs = mChunkToServerMap.GetServers(vecStart->second);
                   Servers::iterator servIterStart = srvs.begin();
                   ChunkServerPtr sourceChunkServer = *servIterStart;
- 
+
+                  //KFS_LOG_STREAM_ERROR << "subrata : sending decoding info to ChunkServers : " << "loc=" << sourceChunkServer->GetHostPortStr() << " , decodingCoeff=" << decodingCoeff << " , stripe_identifier=" << stripe_identifier << " , chunk_index_in_stripe=" << vecStart->first <<  KFS_LOG_EOM;
+                   
                   sourceChunkServer->DistributeRepairInformation(fid, theMissing_chunkId, stripe_identifier , decodingCoeff, operationSeq,
                   sourceChunkServer, recoveryInfo, recovIt);  // the object pointer does not do anything useful. Used for NextSeq()
             }

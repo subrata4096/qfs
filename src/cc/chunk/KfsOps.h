@@ -81,6 +81,7 @@ enum KfsOp_t {
     CMD_DELETE_CHUNK,
     CMD_TRUNCATE_CHUNK,
     CMD_REPLICATE_CHUNK,
+    CMD_REPLICATE_DISTRIBUTED_CHUNK,
     CMD_CHANGE_CHUNK_VERS,
     CMD_BEGIN_MAKE_CHUNK_STABLE,
     CMD_MAKE_CHUNK_STABLE,
@@ -93,6 +94,13 @@ enum KfsOp_t {
     CMD_CORRUPT_CHUNK,
     CMD_LEASE_RENEW,
     CMD_LEASE_RELINQUISH,
+
+    //subrata add
+    // Chunk server->Chunk server ops during ditributed repair
+    CMD_GET_REPAIR_CHUNK,   //get request for getting the chunk
+    CMD_REPAIR_CHUNK,       //send response with "The" repar chunk. This chunk is properly multiplied and xored accordoing to Op param 
+    
+    // subrata end  
 
     // Client -> Chunkserver ops
     CMD_SYNC,
@@ -787,6 +795,34 @@ struct ReplicateChunkOp : public KfsOp {
         chunkServerAccess(),
         chunkAccess()
         {}
+
+    //subrata add
+     ReplicateChunkOp(KfsOp_t theOp, kfsSeq_t s = 0) :
+        KfsOp(theOp, s),
+        fid(-1),
+        chunkId(-1),
+        location(),
+        chunkVersion(-1),
+        targetVersion(-1),
+        fileSize(-1),
+        chunkOffset(-1),
+        striperType(KFS_STRIPED_FILE_TYPE_NONE),
+        numStripes(0),
+        numRecoveryStripes(0),
+        stripeSize(0),
+        minStorageTier(kKfsSTierUndef),
+        maxStorageTier(kKfsSTierUndef),
+        pathName(),
+        invalidStripeIdx(),
+        metaPort(-1),
+        allowCSClearTextFlag(false),
+        locationStr(),
+        chunkServerAccess(),
+        chunkAccess()
+        {}
+    
+    //subrata end
+
     void Execute();
     void Response(ostream &os);
     virtual ostream& ShowSelf(ostream& os) const {
@@ -857,19 +893,33 @@ struct PartialRepairOp : public KfsOp {
 
 struct DistributedReplicateChunkOp : public ReplicateChunkOp {
 
+      long stripe_identifier;
+      int decoding_coefficient;
       std::list<PartialRepairOp> opSequenceList;
       std::string theSequenceString;
 
+     DistributedReplicateChunkOp(kfsSeq_t s = 0) :
+        ReplicateChunkOp(CMD_REPLICATE_DISTRIBUTED_CHUNK, s)
+        {
+           stripe_identifier = -1;
+           decoding_coefficient = -1; 
+           theSequenceString = "EMPTY" ;
+        };
+
+
        virtual ostream& ShowSelf(ostream& os) const {
-        return os << "Nothing";
+        return os << "Chunk-id=" << this->chunkId << " , stripe_identifier="<< this->stripe_identifier << " , decoding_coefficient=" << this->decoding_coefficient;
      }
    
      template<typename T> static T& ParserDef(T& parser)
      {
         return ReplicateChunkOp::ParserDef(parser)
-        .Def("Partial-Sequence-String",   &DistributedReplicateChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        .Def("STRIPE-IDENTIFIER",   &DistributedReplicateChunkOp::stripe_identifier,  long(-1))
+        .Def("Decoding-coefficient",   &DistributedReplicateChunkOp::decoding_coefficient,  int(-1))
+        .Def("Operation-sequence-list",   &DistributedReplicateChunkOp::theSequenceString,  std::string("STILL EMPTY"))
         ;
     }
+    virtual void Execute();
 
 
 };
