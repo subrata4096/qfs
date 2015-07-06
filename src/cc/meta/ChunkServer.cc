@@ -1924,7 +1924,8 @@ ChunkServer::DistributeRepairInformation(fid_t fid, chunkId_t chunkId, long& str
     const ChunkServerPtr& dataServer, const ChunkRecoveryInfo& recoveryInfo,
     MetaChunkReplicate::FileRecoveryInFlightCount::iterator it) 
 {
-   MetaDistributedReplicateChunk* r  = new MetaDistributedReplicateChunk(NextSeq(), shared_from_this(), fid, chunkId,
+
+   MetaDistributedRepairChunk* r  = new MetaDistributedRepairChunk(NextSeq(), shared_from_this(), fid, chunkId,
         dataServer->GetServerLocation(), decodeCoeff, stripe_identifier, operationSeq, it, dataServer);
   
 

@@ -190,9 +190,9 @@ bool ReplicatorImpl::sReadSkipDiskVerifyFlag = true;
 
 //subrata add
 
-//DistributedReplicateChunkOp is derived from  ReplicateChunkOp with some added info
+//DistributedRepairChunkOp is derived from  ReplicateChunkOp with some added info
 //static
-int DistributedRepair::Run(DistributedReplicateChunkOp* dRCOp)
+int DistributedRepair::Run(DistributedRepairChunkOp* dRCOp)
 {
       while(false == (dRCOp->opSequenceList).empty())
       {

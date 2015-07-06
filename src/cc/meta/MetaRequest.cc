@@ -5208,20 +5208,20 @@ MetaChunkReplicate::handleReply(const Properties& prop)
 
 //subrata add
 
-static const string sReplicateDistributedCmdName("REPLICATEDISTRIBUTED");
+static const string sReplicateDistributedCmdName("REPAIRDISTRIBUTED");
 /* virtual */ 
-ostream& MetaDistributedReplicateChunk::ShowSelf(ostream& os) const
+ostream& MetaDistributedRepairChunk::ShowSelf(ostream& os) const
 {
-     os << "MetaDistributedReplicateChunk";
+     os << "MetaDistributedRepairChunk";
      return os;
 }
 void
-MetaDistributedReplicateChunk::handle()
+MetaDistributedRepairChunk::handle()
 {
 }
 
 void
-MetaDistributedReplicateChunk::request(ostream& os)
+MetaDistributedRepairChunk::request(ostream& os)
 {
     ostringstream& rs = GetTmpOStringStream();
     rs <<
@@ -5322,7 +5322,7 @@ MetaDistributedReplicateChunk::request(ostream& os)
 
 }
 void
-MetaDistributedReplicateChunk::handleReply(const Properties& prop)
+MetaDistributedRepairChunk::handleReply(const Properties& prop)
 {
 }
 

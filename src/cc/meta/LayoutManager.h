@@ -2132,6 +2132,8 @@ protected:
 
    int GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, std::map<int,int>& decodingCoefficient);
 
+   int PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,std::string> >& operationMapForChunkServers);
+
     //subrata end
 
 

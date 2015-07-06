@@ -8152,6 +8152,37 @@ int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int num
         return 0;
 }
 
+int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,std::string> >& operationMapForChunkServers)
+{
+        std::string key1 = "127.0.0.1:21005";
+        std::string key2 = "127.0.0.1:21007";
+        std::string key3 = "127.0.0.1:21008";
+        std::string key4 = "127.0.0.1:21009";
+
+       std::string op1 = "D1-127.0.0.1:21001"; //Meaning:  get from 12.0.0.1:21001 AFTER multiplying by decoding coeff "1" and XOR with myself
+       std::string op2 = "D3-127.0.0.1:21003"; //Meaning:  get from 12.0.0.1:21003 AFTER multiplying by decoding coeff "3" and XOR with myself
+       std::string op3 = "D5-127.0.0.1:21005";
+       std::string op4 = "D7-127.0.0.1:21007";
+
+         std::map<int,std::string> opMap1;
+         opMap1[1] = op1;     //do this operation for timestep 1
+         opMap1[2] = op2;     //do this operation for timestep 2
+        operationMapForChunkServers[key1] = opMap1;
+
+         std::map<int,std::string> opMap2;
+         opMap1[1] = op3;     //do this operation for timestep 1
+        operationMapForChunkServers[key2] = opMap2;
+
+
+         std::map<int,std::string> opMap3;
+         opMap1[1] = op4;     //do this operation for timestep 1
+        operationMapForChunkServers[key3] = opMap3;
+         
+       std::map<int,std::string> opMap4;
+         opMap1[2] = op4;     //do this operation for timestep 1
+        operationMapForChunkServers[key4] = opMap4;
+}
+
 ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, const ChunkRecoveryInfo& recoveryInfo)
 {
        chunkId_t theMissing_chunkId = c.GetChunkId();
@@ -8161,6 +8192,15 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
        std::map<long, std::map<int,chunkId_t> > :: iterator stripePos = stripeIdentifierToChunkIDMap.find(stripe_identifier);
        std::map<int,chunkId_t> :: iterator vecStart = (stripePos->second).begin(); 
        std::map<int,chunkId_t> :: iterator vecEnd = (stripePos->second).end(); 
+
+
+
+      //populate the operation map that will perform distributed repair...
+      // only "some server will get this operation list and they intern will tell others to send rest of the chunks..
+      //this is to reduce over head. We want to piggyback as much as possible..
+
+      std::map<std::string, std::map<int,std::string> > operationMapForChunkServers;
+      PopulateDistributedRepairOperationTable(operationMapForChunkServers);
  
        std::stringstream ss;
  
@@ -8191,6 +8231,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                {
                   selectedDstChunkPtr = *servIterStart;
                   this->serverSet = true;
+                  break;
                }
                }
                else
@@ -8198,6 +8239,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                   if((*servIterStart)->GetHostPortStr() == "127.0.0.1:21008")
                   {
                   selectedDstChunkPtr = *servIterStart;
+                  break;
                   }
                }
                ss << (*servIterStart)->GetHostPortStr() << ","; 
@@ -8230,8 +8272,41 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                   ChunkServerPtr sourceChunkServer = *servIterStart;
 
                   //KFS_LOG_STREAM_ERROR << "subrata : sending decoding info to ChunkServers : " << "loc=" << sourceChunkServer->GetHostPortStr() << " , decodingCoeff=" << decodingCoeff << " , stripe_identifier=" << stripe_identifier << " , chunk_index_in_stripe=" << vecStart->first <<  KFS_LOG_EOM;
-                   
-                  sourceChunkServer->DistributeRepairInformation(fid, theMissing_chunkId, stripe_identifier , decodingCoeff, operationSeq,
+                  
+
+                  //1. create a key for this server as "hostname:port" combination.
+                  //2. Then find out if there are any list of operations for this key that was already populated.
+                  //3. If no list of operation, then do not need to send any thing. Just skep. Currenly everything is string based for testing..
+
+                  //std::string thisServerKey = sourceChunkServer->GetServerName() + std::string(":") +  sourceChunkServer->GetHostPortStr();
+                  std::string thisServerKey = sourceChunkServer->GetHostPortStr();
+                  std::map<std::string, std::map<int,std::string> > :: iterator opListPos = operationMapForChunkServers.find(thisServerKey);
+                  
+                 std::stringstream operationTemporalList;
+                  
+                  if(opListPos != operationMapForChunkServers.end())
+                  {
+                      // continue;
+                  
+                  
+                  std::map<int,std::string> opMap = opListPos->second;
+                  //make a string of the temporal list of operations..
+                 std::map<int,std::string> :: iterator opStart = opMap.begin();
+                 std::map<int,std::string> :: iterator opEnd = opMap.end();
+ 
+                for(; opStart != opEnd; opStart++)
+                {
+                     operationTemporalList << "TIME" << opStart->first << "OP" << opStart->second;
+                }
+                }
+
+                 std::string chunkServerOpList(operationTemporalList.str());
+
+                  KFS_LOG_STREAM_ERROR << "subrata : For " << thisServerKey << " operationTemporalList = " << chunkServerOpList << KFS_LOG_EOM;
+              
+                 
+
+                  sourceChunkServer->DistributeRepairInformation(fid, theMissing_chunkId, stripe_identifier , decodingCoeff, chunkServerOpList ,
                   sourceChunkServer, recoveryInfo, recovIt);  // the object pointer does not do anything useful. Used for NextSeq()
             }
       }
@@ -8259,6 +8334,13 @@ LayoutManager::ReplicateChunk(
 
     //subrata add
      ChunkServerPtr myCS = CoordinateTheReplicationProcess(clli, recoveryInfo);
+
+   // *********************************
+     KFS_LOG_STREAM_ERROR << "subrata: WE ARE SKIPPING THE OLD REPAIR CODE FOR NOW BY 'RETURNING 0' FROM HERE " << KFS_LOG_EOM;
+     return 0;
+
+   // ********************************
+
     //subrata end
     const MetaFattr* const fa       = clli.GetFattr();
     kfsSTier_t             minSTier = fa->minSTier;

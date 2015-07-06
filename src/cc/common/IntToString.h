@@ -32,7 +32,6 @@
 
 #ifndef KFS_INTTOSTRING_H
 #define KFS_INTTOSTRING_H
-
 namespace KFS {
 
 template <int TRadix>
@@ -246,7 +245,7 @@ operator<<(
 {
     return inWrite.Write(inStream);
 }
-
 }
+
 
 #endif /* KFS_INTTOSTRING_H */

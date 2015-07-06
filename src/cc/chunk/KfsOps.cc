@@ -650,7 +650,7 @@ MakeMetaRequestHandler()
     .MakeParser<DeleteChunkOp           >("DELETE")
     .MakeParser<TruncateChunkOp         >("TRUNCATE")
     .MakeParser<ReplicateChunkOp        >("REPLICATE")
-    .MakeParser<DistributedReplicateChunkOp        >("REPLICATEDISTRIBUTED")
+    .MakeParser<DistributedRepairChunkOp        >("REPAIRDISTRIBUTED")
     .MakeParser<HeartbeatOp             >("HEARTBEAT")
     .MakeParser<StaleChunksOp           >("STALE_CHUNKS")
     .MakeParser<ChangeChunkVersOp       >("CHUNK_VERS_CHANGE")
@@ -1353,9 +1353,9 @@ ReplicateChunkOp::Execute()
 //subrata add
 
 void
-DistributedReplicateChunkOp::Execute()
+DistributedRepairChunkOp::Execute()
 {
-    KFS_LOG_STREAM_ERROR << "Chunk-id=" << this->chunkId << " , stripe_identifier="<< this->stripe_identifier << " , decoding_coefficient=" << this->decoding_coefficient << KFS_LOG_EOM;
+    KFS_LOG_STREAM_ERROR << "Chunk-id=" << this->chunkId << " , stripe_identifier="<< this->stripe_identifier << " , decoding_coefficient=" << this->decoding_coefficient << " , theSequenceString=" << this->theSequenceString << KFS_LOG_EOM;
  
    std::vector<std::string> sourceServerVector; 
    //Now try to send a message to the othe chunk servers
@@ -1389,14 +1389,34 @@ DistributedReplicateChunkOp::Execute()
                 this->statusMsg,
                 theConnectFlag,
                 theForceUseClientThreadFlag);
+
+     SendChunkForDistributedRepairOp chunkRepairRequestOp;
      
     //Enqueue a KfsOp on for the Peer may be. This Op will be like a get request for chunk. Will also have the temporal ordering id
     //peer->Enqueue(KfsOp* op);
+    peer->Enqueue(&chunkRepairRequestOp);
+
 
     //The response will be handed by RemoteSyncSM::HandleResponse   -- but do not know how to handle that yet..
 
    }
 
+}
+void SendChunkForDistributedRepairOp::Execute()
+{
+  
+    KFS_LOG_STREAM_ERROR << "subrata : SendChunkForDistributedRepairOp::Execute  Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM; 
+}
+
+
+void SendChunkForDistributedRepairOp::Request(ostream &os)
+{
+    KFS_LOG_STREAM_ERROR << "subrata : SendChunkForDistributedRepairOp::Request  Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM; 
+}
+
+void SendChunkForDistributedRepairOp::Response(ostream &os)
+{
+    //KFS_LOG_EOM << "subrata :  Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM;
 }
 
 //subrata end

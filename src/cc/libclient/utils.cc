@@ -33,7 +33,9 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <unistd.h>
-
+#include <sstream>
+#include <vector>
+#include <string>
 namespace KFS
 {
 namespace client
@@ -87,3 +89,26 @@ GetTimeval(const char* s, struct timeval& tv)
 
 }
 }
+
+void abc()
+{
+}
+using namespace std;
+std::vector<std::string>& split_string(const std::string &s, std::string& splitter, std::vector<std::string> &elems) {
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
+    #include <boost/algorithm/string.hpp>
+    std::string inputString("One!Two,Three:Four");
+    std::string delimiters("|,:");
+    boost::split(elems, inputString, boost::is_any_of(splitter));
+}
+
+std::vector<std::string> split(const std::string &s, char delim) {
+    std::vector<std::string> elems;
+    split_string(s, delim, elems);  return elems;
+}
+

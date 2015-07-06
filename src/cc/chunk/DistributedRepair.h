@@ -13,14 +13,14 @@ namespace KFS
 {
 
 struct ReplicateChunkOp;
-struct DistributedReplicateChunkOp;
+struct DistributedRepairChunkOp;
 class Properties;
 class NetManager;
 
 class DistributedRepair
 {
 public:
-    static int Run(DistributedReplicateChunkOp* dRCOp);
+    static int Run(DistributedRepairChunkOp* dRCOp);
     #if 0
     struct Counters
     {

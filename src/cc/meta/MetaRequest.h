@@ -1760,7 +1760,7 @@ struct MetaChunkReplicate: public MetaChunkRequest {
     virtual ostream& ShowSelf(ostream& os) const;
 };
 
-struct MetaDistributedReplicateChunk : public MetaChunkReplicate {
+struct MetaDistributedRepairChunk : public MetaChunkReplicate {
     typedef DelegationToken::TokenSeq TokenSeq;
     typedef map<
         pair<kfsUid_t, fid_t>,
@@ -1773,14 +1773,14 @@ struct MetaDistributedReplicateChunk : public MetaChunkReplicate {
        long stripe_identifier;
        std::string operation_sequence_list;
 
-       MetaDistributedReplicateChunk(seq_t n, const ChunkServerPtr& s,
+       MetaDistributedRepairChunk(seq_t n, const ChunkServerPtr& s,
             fid_t f, chunkId_t c, const ServerLocation& loc, int& decodeCoeff, long& stripe_id, 
             std::string& opSequence,FileRecoveryInFlightCount::iterator it, const ChunkServerPtr& src):MetaChunkReplicate(n, s, f, c, loc, src, -1,  -1, it),
             decodeCoeff(decodeCoeff),
             stripe_identifier(stripe_id),
             operation_sequence_list(opSequence) 
    { }
-    virtual ~MetaDistributedReplicateChunk() { assert(! versChange); }
+    virtual ~MetaDistributedRepairChunk() { assert(! versChange); }
     virtual void handle();
     virtual void request(ostream &os);
     virtual void handleReply(const Properties& prop);

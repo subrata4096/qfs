@@ -891,14 +891,14 @@ struct PartialRepairOp : public KfsOp {
 
 };
 
-struct DistributedReplicateChunkOp : public ReplicateChunkOp {
+struct DistributedRepairChunkOp : public ReplicateChunkOp {
 
       long stripe_identifier;
       int decoding_coefficient;
       std::list<PartialRepairOp> opSequenceList;
       std::string theSequenceString;
 
-     DistributedReplicateChunkOp(kfsSeq_t s = 0) :
+     DistributedRepairChunkOp(kfsSeq_t s = 0) :
         ReplicateChunkOp(CMD_REPLICATE_DISTRIBUTED_CHUNK, s)
         {
            stripe_identifier = -1;
@@ -914,15 +914,68 @@ struct DistributedReplicateChunkOp : public ReplicateChunkOp {
      template<typename T> static T& ParserDef(T& parser)
      {
         return ReplicateChunkOp::ParserDef(parser)
-        .Def("STRIPE-IDENTIFIER",   &DistributedReplicateChunkOp::stripe_identifier,  long(-1))
-        .Def("Decoding-coefficient",   &DistributedReplicateChunkOp::decoding_coefficient,  int(-1))
-        .Def("Operation-sequence-list",   &DistributedReplicateChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        .Def("STRIPE-IDENTIFIER",   &DistributedRepairChunkOp::stripe_identifier,  long(-1))
+        .Def("Decoding-coefficient",   &DistributedRepairChunkOp::decoding_coefficient,  int(-1))
+        .Def("Operation-sequence-list",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
         ;
     }
     virtual void Execute();
 
 
 };
+struct ReadOp;
+struct SendChunkForDistributedRepairOp : public KfsClientChunkOp {
+    int64_t      chunkVersion; // output
+    bool         readVerifyFlag;
+    int64_t      chunkSize; // output
+    IOBuffer     dataBuf; // buffer with the checksum info
+    size_t       numBytesIO;
+    //ReadOp       readOp; // internally generated
+    int64_t      numBytesScrubbed;
+    const char*  requestChunkAccess;
+    enum { kChunkReadSize = 1 << 20, kChunkMetaReadSize = 16 << 10 };
+
+    SendChunkForDistributedRepairOp(kfsSeq_t s = 0)
+        : KfsClientChunkOp(CMD_GET_REPAIR_CHUNK, s),
+          chunkVersion(0),
+          readVerifyFlag(false),
+          chunkSize(0),
+          dataBuf(),
+          numBytesIO(0),
+          //readOp(0),
+          numBytesScrubbed(0),
+          requestChunkAccess(0)
+        {}
+    ~SendChunkForDistributedRepairOp()
+        {}
+    void Execute();
+    void Request(ostream &os);
+    void Response(ostream &os);
+    void ResponseContent(IOBuffer*& buf, int& size) {
+        buf  = status >= 0 ? &dataBuf : 0;
+        size = buf ? numBytesIO : 0;
+    }
+    virtual ostream& ShowSelf(ostream& os) const
+    {
+        return os <<
+            "send-chunk-for-repair:"
+            " seq: "          << seq <<
+            " chunkid: "      << chunkId <<
+            " chunkversion: " << chunkVersion
+        ;
+    }
+    template<typename T> static T& ParserDef(T& parser)
+     {
+        return KfsClientChunkOp::ParserDef(parser)
+        //.Def("STRIPE-IDENTIFIER",   &DistributedRepairChunkOp::stripe_identifier,  long(-1))
+        //.Def("Decoding-coefficient",   &DistributedRepairChunkOp::decoding_coefficient,  int(-1))
+        //.Def("Operation-sequence-list",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        ;
+    }
+
+};
+
+
 
 //subrata end
 
