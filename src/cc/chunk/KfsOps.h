@@ -99,6 +99,7 @@ enum KfsOp_t {
     // Chunk server->Chunk server ops during ditributed repair
     CMD_GET_REPAIR_CHUNK,   //get request for getting the chunk
     CMD_REPAIR_CHUNK,       //send response with "The" repar chunk. This chunk is properly multiplied and xored accordoing to Op param 
+    CMD_READ_FOR_PARTIAL_DECODE,       //read for partial decode operation 
     
     // subrata end  
 
@@ -906,9 +907,17 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
       int decoding_coefficient;
       std::list<PartialRepairOp> opSequenceList;
       std::string theSequenceString;
+     
+      //not sure if these will be needed
+      SyncReplicationAccess syncReplicationAccess;
+      int chunkAccessLength;
+      int contentLength;
 
      DistributedRepairChunkOp(kfsSeq_t s = 0) :
-        ReplicateChunkOp(CMD_REPLICATE_DISTRIBUTED_CHUNK, s)
+        ReplicateChunkOp(CMD_REPLICATE_DISTRIBUTED_CHUNK, s),
+        syncReplicationAccess(),
+        chunkAccessLength(0),
+        contentLength(0)
         {
            stripe_identifier = -1;
            decoding_coefficient = -1; 
@@ -916,7 +925,12 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
            SET_HANDLER(this, &DistributedRepairChunkOp::HandleDone);
         };
 
-
+       virtual bool ParseContent(istream& is)
+       {
+        return syncReplicationAccess.Parse(
+            is, chunkAccessLength, contentLength);
+      }
+ 
        virtual ostream& ShowSelf(ostream& os) const {
         return os << "Chunk-id=" << this->chunkId << " , stripe_identifier="<< this->stripe_identifier << " , decoding_coefficient=" << this->decoding_coefficient;
      }
@@ -936,7 +950,6 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
 
 
 };
-struct ReadOp;
 struct SendChunkForDistributedRepairOp : public KfsClientChunkOp {
     int64_t      chunkVersion; // output
     bool         readVerifyFlag;
@@ -987,19 +1000,22 @@ struct SendChunkForDistributedRepairOp : public KfsClientChunkOp {
             " chunkversion: " << chunkVersion
         ;
     }
+    /*
     template<typename T> static T& ParserDef(T& parser)
      {
         return KfsClientChunkOp::ParserDef(parser)
-        //.Def("STRIPE-IDENTIFIER",   &DistributedRepairChunkOp::stripe_identifier,  long(-1))
-        //.Def("Decoding-coefficient",   &DistributedRepairChunkOp::decoding_coefficient,  int(-1))
-        //.Def("Operation-sequence-list",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        .Def("STRIPE-IDENTIFIER",   &DistributedRepairChunkOp::stripe_identifier,  long(-1))
+        .Def("Decoding-coefficient",   &DistributedRepairChunkOp::decoding_coefficient,  int(-1))
+        .Def("TEMPORAL_TIME",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        .Def("Chunk-handle",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        .Def("Chunk-version",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        .Def("Num-bytes",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
         ;
     }
+    */
     virtual int HandleDone(int code, void *data);
 
 };
-
-
 
 //subrata end
 
@@ -1806,7 +1822,26 @@ struct ReadOp : public KfsClientChunkOp {
           scrubOp(0),
           devBufMgr(0)
         { SET_HANDLER(this, &ReadOp::HandleDone); }
-    ReadOp(WriteOp* w, int64_t o, size_t n)
+
+   ReadOp(KFS::KfsOp_t opcode,kfsSeq_t s = 0)
+        : KfsClientChunkOp(opcode, s),
+          chunkVersion(-1),
+          offset(0),
+          numBytes(0),
+          numBytesIO(0),
+          diskIo(),
+          dataBuf(),
+          checksum(),
+          diskIOTime(0),
+          retryCnt(0),
+          skipVerifyDiskChecksumFlag(false),
+          requestChunkAccess(0),
+          wop(0),
+          scrubOp(0),
+          devBufMgr(0)
+        { SET_HANDLER(this, &ReadOp::HandleDone); } 
+
+   ReadOp(WriteOp* w, int64_t o, size_t n)
         : KfsClientChunkOp(CMD_READ, w->seq),
           chunkVersion(w->chunkVersion),
           offset(o),
@@ -1888,6 +1923,48 @@ struct ReadOp : public KfsClientChunkOp {
         ;
     }
 };
+
+//subrata add
+
+struct ReadForPartialDecodeOp : public ReadOp {
+    int64_t      chunkSize; // output
+    size_t       numBytesIO;
+    //kfsChunkId_t chunkid;
+    long stripe_identifier;
+    int temporal_time;
+    int decoding_coefficient;
+
+    ReadForPartialDecodeOp(kfsSeq_t s = 0)
+        : ReadOp(CMD_READ_FOR_PARTIAL_DECODE, s),
+          chunkSize(0),
+          stripe_identifier(-1),
+          temporal_time(-1),
+          decoding_coefficient(-1)
+        {
+           SET_HANDLER(this, &ReadForPartialDecodeOp::HandleDone);
+        }
+    ~ReadForPartialDecodeOp()
+        {}
+    virtual void Execute();
+    virtual void Request(ostream &os);
+    virtual void Response(ostream &os);
+    virtual int HandleDone(int code, void* data);
+    template<typename T> static T& ParserDef(T& parser)
+     {
+        //return KfsClientChunkOp::ParserDef(parser)
+        return ReadOp::ParserDef(parser)
+        .Def("STRIPE-IDENTIFIER",   &ReadForPartialDecodeOp::stripe_identifier,  long(-1))
+        .Def("Decoding-coefficient",   &ReadForPartialDecodeOp::decoding_coefficient,  int(-1))
+        .Def("TEMPORAL_TIME",   &ReadForPartialDecodeOp::temporal_time,  int(0))
+        //.Def("Chunk-handle",   &ReadForPartialDecodeOp::chunkid,  kfsChunkId_t(-1))
+        .Def("chunkSize",   &ReadForPartialDecodeOp::chunkSize,  int64_t(0))
+        ;
+    }
+};
+
+
+//subrata end
+
 
 // used for retrieving a chunk's size
 struct SizeOp : public KfsClientChunkOp {

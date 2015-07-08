@@ -655,6 +655,7 @@ MakeClientRequestHandler()
     return MakeCommonRequestHandler(sHandler)
     .MakeParser<CloseOp                 >("CLOSE")
     .MakeParser<ReadOp                  >("READ")
+    .MakeParser<ReadForPartialDecodeOp >("READ_FOR_PARTIAL_DECODING")
     .MakeParser<WriteIdAllocOp          >("WRITE_ID_ALLOC")
     .MakeParser<WritePrepareOp          >("WRITE_PREPARE")
     .MakeParser<WriteSyncOp             >("WRITE_SYNC")
@@ -1493,6 +1494,8 @@ DistributedRepairChunkOp::Execute()
       //int port = 1234;
       ServerLocation peerServerLoc(hostname, port);
 
+      /*
+      //subrata : these DOES NOT WORK so commenting out..
       RemoteSyncSMPtr peer = RemoteSyncSM::Create(
                 peerServerLoc,
                 token,
@@ -1505,6 +1508,27 @@ DistributedRepairChunkOp::Execute()
                 this->statusMsg,
                 theConnectFlag,
                 theForceUseClientThreadFlag);
+     //RemoteSyncSMPtr peer = FindPeer(*this, peerServerLoc, false, false); 
+     */
+
+     //subrata :  This actually works!! I am able to send a message to other ChunkServers from this ChunkServers ... Yahoo!!
+     RemoteSyncSMPtr peer = gChunkServer.FindServer(
+                peerServerLoc,
+                theConnectFlag,
+                token,
+                tokenLen,
+                key,
+                keyLen,
+                kKeyIsNotEncryptedFlag,
+                this->allowCSClearTextFlag,
+                this->status,
+                this->statusMsg
+            );
+            if (this->status < 0) {
+                peer.reset();
+            }
+
+
 
      SendChunkForDistributedRepairOp* chunkRepairRequestOp = new SendChunkForDistributedRepairOp();
      chunkRepairRequestOp->chunkId = atoi(chunkIdStr.c_str());
@@ -1547,26 +1571,26 @@ DistributedRepairChunkOp::HandleDone(int code, void *data)
 void SendChunkForDistributedRepairOp::Execute()
 {
   
-    KFS_LOG_STREAM_ERROR << "subrata : SendChunkForDistributedRepairOp::Execute  Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM; 
+    KFS_LOG_STREAM_ERROR << "subrata : SendChunkForDistributedRepairOp::Execute  Going to request a chunk-id (" << this->chunkId << " ) from a host for stripe repair " << KFS_LOG_EOM; 
 }
 
 
 void SendChunkForDistributedRepairOp::Request(ostream &os)
 {
     //subrata this is being called .. instead of the Execute()
-    KFS_LOG_STREAM_ERROR << "subrata : SendChunkForDistributedRepairOp::Request  Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM;
+    KFS_LOG_STREAM_ERROR << "subrata : SendChunkForDistributedRepairOp::Request  Going to request a chunk-id (" << this->chunkId << " ) from a host for stripe repair " << KFS_LOG_EOM;
     
       os <<
-        "READ-FOR-PARTIAL-DECODING\r\n"
+        "READ_FOR_PARTIAL_DECODING\r\n"
         "Cseq: "          << seq             << "\r\n"
         "Version: "       << KFS_VERSION_STR << "\r\n"
         "Chunk-handle: "  << chunkId         << "\r\n"
         "Chunk-version: " << chunkVersion    << "\r\n"
-        "Num-bytes: "     << chunkSize        << "\r\n"
+        "chunkSize: "     << chunkSize        << "\r\n"
         //"Num-bytes: "     << numBytes        << "\r\n"
         "STRIPE_IDENTIFIER: "     << stripe_identifier   << "\r\n"
         "TEMPORAL_TIME: "     << temporal_time   << "\r\n"
-        "MULTIPLICATION_COEFF: "  << decoding_coefficient   << "\r\n"
+        "Decoding-coefficient: "  << decoding_coefficient   << "\r\n"
     ;
 
     /*
@@ -1598,6 +1622,31 @@ SendChunkForDistributedRepairOp::HandleDone(int code, void *data)
      // gLogger.Submit(this);
     }
     return 0;
+}
+
+int ReadForPartialDecodeOp::HandleDone(int code, void* data)
+{
+   
+   KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::HandleDone" << KFS_LOG_EOM;
+   return 0;
+}
+
+void ReadForPartialDecodeOp::Execute()
+{
+   KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Execute" << KFS_LOG_EOM;
+   return;
+}
+
+void ReadForPartialDecodeOp::Request(ostream &os)
+{
+    KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::::Request" << KFS_LOG_EOM;
+    return;
+}
+
+void ReadForPartialDecodeOp::Response(ostream &os)
+{
+    KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Response Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM;
+    return;
 }
 
 //subrata end

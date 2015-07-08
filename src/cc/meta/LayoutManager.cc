@@ -8163,8 +8163,6 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
 
        std::string op1 = "1-127.0.0.1:21001"; //Meaning:  get from 12.0.0.1:21001 AFTER multiplying by decoding coeff "1" and XOR with myself
        std::string op2 = "3-127.0.0.1:21003"; //Meaning:  get from 12.0.0.1:21003 AFTER multiplying by decoding coeff "3" and XOR with myself
-       std::string op3 = "5-127.0.0.1:21005";
-       std::string op4 = "7-127.0.0.1:21007";
 
          std::map<int,std::string> opMap1;
          opMap1[1] = op1;     //do this operation for timestep 1
@@ -8172,25 +8170,25 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
         operationMapForChunkServers[key1] = opMap1;
 
          std::map<int,std::string> opMap2;
-         opMap1[1] = op3;     //do this operation for timestep 1
+         opMap1[1] = op1;     //do this operation for timestep 1
         operationMapForChunkServers[key2] = opMap2;
 
 
          std::map<int,std::string> opMap3;
-         opMap1[1] = op4;     //do this operation for timestep 1
+         opMap1[1] = op1;     //do this operation for timestep 1
         operationMapForChunkServers[key3] = opMap3;
          
        std::map<int,std::string> opMap4;
-         opMap4[2] = op4;     //do this operation for timestep 1
+         opMap4[2] = op2;     //do this operation for timestep 1
         operationMapForChunkServers[key4] = opMap4;
       
       // useless... only for testing 
       std::map<int,std::string> opMap5;
-         opMap5[2] = op4;     //do this operation for timestep 1
+         opMap5[2] = op2;     //do this operation for timestep 1
         operationMapForChunkServers[key5] = opMap5;
 
        std::map<int,std::string> opMap6;
-         opMap6[2] = op4;     //do this operation for timestep 1
+         opMap6[2] = op2;     //do this operation for timestep 1
         operationMapForChunkServers[key6] = opMap6;
 }
 
