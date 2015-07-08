@@ -85,6 +85,35 @@ using std::max;
 using std::streamsize;
 using namespace KFS::libkfsio;
 
+
+
+//subrata add
+
+void split_string(const std::string& s, const std::string& delim, std::vector<std::string> &elems) {
+    size_t start = 0;
+    size_t end = s.find(delim);
+    size_t delimLength = delim.length();
+    while (end != std::string::npos)
+    {
+        if(start != end) {  
+           elems.push_back(s.substr(start, end - start));
+        }
+        start = end + delimLength;
+        end = s.find(delim, start);
+    }
+    elems.push_back(s.substr(start, end));
+    //return elems;
+}
+
+std::vector<std::string> split(const std::string &s, const std::string& delim) {
+    std::vector<std::string> elems;
+    split_string(s,delim,elems);
+    return elems;
+}
+
+
+//subrata end
+
 // Counters for the various ops
 struct OpCounters : private map<KfsOp_t, Counter *>
 {
@@ -1351,18 +1380,105 @@ ReplicateChunkOp::Execute()
 
 
 //subrata add
+//static
+int DistributedRepairChunkOp::ParseOperationString(const std::string& operationStr, std::string& temporalTime, std::string& chunkIdStr, std::string& chunkVersion, std::string& chunkSize, std::string& decodeCoefficient, std::string& hostnameAndPort, std::string& hostname, int& port)
+{
+   // operationStr = 4C2345D1-127.0.0.1:21001
+   //                <temporalTime>C<chunkId>D<decodeCoeffMultiplier>-<IP>:<port>
+   std::string chunkSeparator = "C";
+   std::string chunkVersionSeparator = "V";
+   std::string chunkSizeSeparator = "S";
+   std::string decodeSeparator = "D";
+   std::string ipSeparator = "-";
+   
+   size_t chunkPos = operationStr.find(chunkSeparator);
+   if(chunkPos == std::string::npos)
+   {
+        return 1;  //error
+   }
+   temporalTime = operationStr.substr(0,chunkPos);
+   //got temporal order. now get the chunk id
+
+   chunkPos = chunkPos + chunkSeparator.length();
+
+
+   size_t versionPos = operationStr.find(chunkVersionSeparator);
+   if(versionPos == std::string::npos)
+   {
+        return 1;  //error
+   }
+
+   chunkIdStr = operationStr.substr(chunkPos, (versionPos - chunkPos));
+   //got chunk id, now get the chunk version
+
+   versionPos = versionPos + chunkVersionSeparator.length(); 
+
+   size_t sizePos = operationStr.find(chunkSizeSeparator);
+   if(sizePos == std::string::npos)
+   {
+        return 1;  //error
+   }
+   chunkVersion = operationStr.substr(versionPos, (sizePos - versionPos));
+   
+   //got chunk version, now get the chunk size
+   
+   sizePos = sizePos + chunkSizeSeparator.length(); 
+
+   size_t opPos = operationStr.find(decodeSeparator);
+   if(opPos == std::string::npos)
+   {
+        return 1;  //error
+   }
+
+   chunkSize = operationStr.substr(sizePos, (opPos - sizePos));
+   
+  //got chunk size, now get the chunk decoding coefficient
+
+
+   opPos = opPos + decodeSeparator.length();
+
+   size_t ipPos = operationStr.find(ipSeparator);
+
+   decodeCoefficient = operationStr.substr(opPos, (ipPos - opPos));
+   ipPos = ipPos + ipSeparator.length();
+   hostnameAndPort = operationStr.substr(ipPos,std::string::npos);
+
+   size_t colonPos = hostnameAndPort.find(":");
+   hostname = hostnameAndPort.substr(0, colonPos);
+   std::string portStr = hostnameAndPort.substr(colonPos+1, std::string::npos);
+   port = atoi(portStr.c_str());
+   
+}
 
 void
 DistributedRepairChunkOp::Execute()
 {
     KFS_LOG_STREAM_ERROR << "Chunk-id=" << this->chunkId << " , stripe_identifier="<< this->stripe_identifier << " , decoding_coefficient=" << this->decoding_coefficient << " , theSequenceString=" << this->theSequenceString << KFS_LOG_EOM;
- 
+
+
+   std::vector<std::string> stringtokens = KFS::split(this->theSequenceString, "TIME");
+   for(int i=0; i < stringtokens.size(); i ++ )
+   {
+        if("STILL EMPTY" == stringtokens[i])
+        {
+          continue; 
+        }
+        KFS_LOG_STREAM_ERROR << "subrata : stringtokens = " << stringtokens[i] << KFS_LOG_EOM;
+        std::string temporalTime, chunkIdStr, chunkVersion, chunkSize, decodeCoefficient, hostnameAndPort, hostname;
+        int port;
+        
+        DistributedRepairChunkOp::ParseOperationString(stringtokens[i], temporalTime, chunkIdStr, chunkVersion, chunkSize, decodeCoefficient, hostnameAndPort, hostname, port);
+     
+        KFS_LOG_STREAM_ERROR << "subrata : operation details: temporalTime=" << temporalTime << " chunkId=" << chunkIdStr << " chunkSize=" << chunkSize <<" decodeCoefficient=" << decodeCoefficient << " hostnameAndPort=" << hostnameAndPort << " hostname=" << hostname << " port=" << port << KFS_LOG_EOM;
+   
+   /*
    std::vector<std::string> sourceServerVector; 
    //Now try to send a message to the othe chunk servers
    std::vector<std::string> :: iterator ii = sourceServerVector.begin();
    std::vector<std::string> :: iterator jj = sourceServerVector.end();
    for( ; ii != jj ; ii++ )
    {
+   */
       const bool kConnectFlag = true;
       const bool kKeyIsNotEncryptedFlag = true;
       char* token;
@@ -1373,8 +1489,8 @@ DistributedRepairChunkOp::Execute()
                 gClientManager.GetMutexPtr() == 0;
       const bool theForceUseClientThreadFlag = ! theConnectFlag;
 
-      std::string hostname = "localhost";
-      int port = 1234;
+      //std::string hostname = "localhost";
+      //int port = 1234;
       ServerLocation peerServerLoc(hostname, port);
 
       RemoteSyncSMPtr peer = RemoteSyncSM::Create(
@@ -1390,11 +1506,22 @@ DistributedRepairChunkOp::Execute()
                 theConnectFlag,
                 theForceUseClientThreadFlag);
 
-     SendChunkForDistributedRepairOp chunkRepairRequestOp;
+     SendChunkForDistributedRepairOp* chunkRepairRequestOp = new SendChunkForDistributedRepairOp();
+     chunkRepairRequestOp->chunkId = atoi(chunkIdStr.c_str());
+     chunkRepairRequestOp->chunkVersion = atoi(chunkVersion.c_str());
+     chunkRepairRequestOp->chunkSize = atoi(chunkSize.c_str());
+     chunkRepairRequestOp->stripe_identifier = this->stripe_identifier;
+     chunkRepairRequestOp->temporal_time = atoi(temporalTime.c_str());
+     chunkRepairRequestOp->decoding_coefficient = atoi(decodeCoefficient.c_str());
      
     //Enqueue a KfsOp on for the Peer may be. This Op will be like a get request for chunk. Will also have the temporal ordering id
     //peer->Enqueue(KfsOp* op);
-    peer->Enqueue(&chunkRepairRequestOp);
+    if(!peer)
+    {
+       KFS_LOG_STREAM_ERROR << "subrata : peer missing in DistributedRepairChunkOp for hostname=" << hostname << " port=" << port << KFS_LOG_EOM; 
+       continue;
+    }
+    peer->Enqueue(chunkRepairRequestOp);
 
 
     //The response will be handed by RemoteSyncSM::HandleResponse   -- but do not know how to handle that yet..
@@ -1402,6 +1529,21 @@ DistributedRepairChunkOp::Execute()
    }
 
 }
+
+int
+DistributedRepairChunkOp::HandleDone(int code, void *data)
+{
+    // notify the owning object that the op finished
+    if(clnt)
+    {
+       clnt->HandleEvent(EVENT_CMD_DONE, this);
+    }
+    else {
+       gLogger.Submit(this);
+    }
+    return 0;
+}
+
 void SendChunkForDistributedRepairOp::Execute()
 {
   
@@ -1411,12 +1553,51 @@ void SendChunkForDistributedRepairOp::Execute()
 
 void SendChunkForDistributedRepairOp::Request(ostream &os)
 {
-    KFS_LOG_STREAM_ERROR << "subrata : SendChunkForDistributedRepairOp::Request  Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM; 
+    //subrata this is being called .. instead of the Execute()
+    KFS_LOG_STREAM_ERROR << "subrata : SendChunkForDistributedRepairOp::Request  Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM;
+    
+      os <<
+        "READ-FOR-PARTIAL-DECODING\r\n"
+        "Cseq: "          << seq             << "\r\n"
+        "Version: "       << KFS_VERSION_STR << "\r\n"
+        "Chunk-handle: "  << chunkId         << "\r\n"
+        "Chunk-version: " << chunkVersion    << "\r\n"
+        "Num-bytes: "     << chunkSize        << "\r\n"
+        //"Num-bytes: "     << numBytes        << "\r\n"
+        "STRIPE_IDENTIFIER: "     << stripe_identifier   << "\r\n"
+        "TEMPORAL_TIME: "     << temporal_time   << "\r\n"
+        "MULTIPLICATION_COEFF: "  << decoding_coefficient   << "\r\n"
+    ;
+
+    /*
+    if (skipVerifyDiskChecksumFlag) {
+        os << "Skip-Disk-Chksum: 1\r\n";
+    }
+    if (requestChunkAccess) {
+        os << "C-access: " << requestChunkAccess << "\r\n";
+    }
+    */
+    os << "\r\n";
+ 
 }
 
 void SendChunkForDistributedRepairOp::Response(ostream &os)
 {
     //KFS_LOG_EOM << "subrata :  Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM;
+}
+
+int
+SendChunkForDistributedRepairOp::HandleDone(int code, void *data)
+{
+    // notify the owning object that the op finished
+    if(clnt) 
+    {
+       //clnt->HandleEvent(EVENT_CMD_DONE, this);
+    }
+    else {
+     // gLogger.Submit(this);
+    }
+    return 0;
 }
 
 //subrata end

@@ -156,6 +156,15 @@ enum OpType_t {
 
 const char* const KFS_VERSION_STR = "KFS/1.0";
 
+//subrata add
+
+void split_string(const std::string& s, const std::string& delim, std::vector<std::string> &elems);
+std::vector<std::string> split(const std::string &s, const std::string& delim);
+
+//subrata end
+
+
+
 class ClientSM;
 class BufferManager;
 
@@ -904,6 +913,7 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
            stripe_identifier = -1;
            decoding_coefficient = -1; 
            theSequenceString = "EMPTY" ;
+           SET_HANDLER(this, &DistributedRepairChunkOp::HandleDone);
         };
 
 
@@ -920,6 +930,9 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
         ;
     }
     virtual void Execute();
+    static int ParseOperationString(const std::string& operationStr, std::string& temporalTime, std::string& chunkIdStr, std::string& chunkVersion, std::string& chunkSize, std::string& decodeCoefficient, std::string& hostnameAndPort, std::string& hostname, int& port);
+
+   virtual int HandleDone(int code, void *data);
 
 
 };
@@ -934,6 +947,10 @@ struct SendChunkForDistributedRepairOp : public KfsClientChunkOp {
     int64_t      numBytesScrubbed;
     const char*  requestChunkAccess;
     enum { kChunkReadSize = 1 << 20, kChunkMetaReadSize = 16 << 10 };
+    kfsChunkId_t chunkid;
+    long stripe_identifier;
+    int temporal_time;
+    int decoding_coefficient;
 
     SendChunkForDistributedRepairOp(kfsSeq_t s = 0)
         : KfsClientChunkOp(CMD_GET_REPAIR_CHUNK, s),
@@ -944,13 +961,19 @@ struct SendChunkForDistributedRepairOp : public KfsClientChunkOp {
           numBytesIO(0),
           //readOp(0),
           numBytesScrubbed(0),
-          requestChunkAccess(0)
-        {}
+          requestChunkAccess(0),
+          chunkid(-1),
+          stripe_identifier(-1),
+          temporal_time(-1),
+          decoding_coefficient(-1)
+        {
+           SET_HANDLER(this, &SendChunkForDistributedRepairOp::HandleDone);
+        }
     ~SendChunkForDistributedRepairOp()
         {}
-    void Execute();
-    void Request(ostream &os);
-    void Response(ostream &os);
+    virtual void Execute();
+    virtual void Request(ostream &os);
+    virtual void Response(ostream &os);
     void ResponseContent(IOBuffer*& buf, int& size) {
         buf  = status >= 0 ? &dataBuf : 0;
         size = buf ? numBytesIO : 0;
@@ -972,6 +995,7 @@ struct SendChunkForDistributedRepairOp : public KfsClientChunkOp {
         //.Def("Operation-sequence-list",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
         ;
     }
+    virtual int HandleDone(int code, void *data);
 
 };
 

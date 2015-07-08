@@ -90,25 +90,25 @@ GetTimeval(const char* s, struct timeval& tv)
 }
 }
 
-void abc()
-{
-}
-using namespace std;
-std::vector<std::string>& split_string(const std::string &s, std::string& splitter, std::vector<std::string> &elems) {
-    std::stringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, delim)) {
-        elems.push_back(item);
+//subrata add
+/*
+std::vector<std::string>& split_string(std::string s, std::string& delim, std::vector<std::string> &elems) {
+    size_t start = 0;
+    size_t end = s.find(delim);
+    while (end != std::string::npos)
+    {
+        elems.push_back(s.substr(start, end - start));
+        start = end + delim.length();
+        end = s.find(delim, start);
     }
+    elems.push_back(s.substr(start, end));
     return elems;
-    #include <boost/algorithm/string.hpp>
-    std::string inputString("One!Two,Three:Four");
-    std::string delimiters("|,:");
-    boost::split(elems, inputString, boost::is_any_of(splitter));
 }
 
-std::vector<std::string> split(const std::string &s, char delim) {
+std::vector<std::string> split(std::string &s, char delim) {
     std::vector<std::string> elems;
-    split_string(s, delim, elems);  return elems;
+    split_string(s,delim,elems);
+    return elems;
 }
-
+*/
+//subrata end

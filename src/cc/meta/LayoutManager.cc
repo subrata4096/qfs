@@ -8158,11 +8158,13 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
         std::string key2 = "127.0.0.1:21007";
         std::string key3 = "127.0.0.1:21008";
         std::string key4 = "127.0.0.1:21009";
+        std::string key5 = "127.0.0.1:21006";
+        std::string key6 = "127.0.0.1:210010";
 
-       std::string op1 = "D1-127.0.0.1:21001"; //Meaning:  get from 12.0.0.1:21001 AFTER multiplying by decoding coeff "1" and XOR with myself
-       std::string op2 = "D3-127.0.0.1:21003"; //Meaning:  get from 12.0.0.1:21003 AFTER multiplying by decoding coeff "3" and XOR with myself
-       std::string op3 = "D5-127.0.0.1:21005";
-       std::string op4 = "D7-127.0.0.1:21007";
+       std::string op1 = "1-127.0.0.1:21001"; //Meaning:  get from 12.0.0.1:21001 AFTER multiplying by decoding coeff "1" and XOR with myself
+       std::string op2 = "3-127.0.0.1:21003"; //Meaning:  get from 12.0.0.1:21003 AFTER multiplying by decoding coeff "3" and XOR with myself
+       std::string op3 = "5-127.0.0.1:21005";
+       std::string op4 = "7-127.0.0.1:21007";
 
          std::map<int,std::string> opMap1;
          opMap1[1] = op1;     //do this operation for timestep 1
@@ -8179,13 +8181,22 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
         operationMapForChunkServers[key3] = opMap3;
          
        std::map<int,std::string> opMap4;
-         opMap1[2] = op4;     //do this operation for timestep 1
+         opMap4[2] = op4;     //do this operation for timestep 1
         operationMapForChunkServers[key4] = opMap4;
+      
+      // useless... only for testing 
+      std::map<int,std::string> opMap5;
+         opMap5[2] = op4;     //do this operation for timestep 1
+        operationMapForChunkServers[key5] = opMap5;
+
+       std::map<int,std::string> opMap6;
+         opMap6[2] = op4;     //do this operation for timestep 1
+        operationMapForChunkServers[key6] = opMap6;
 }
 
 ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, const ChunkRecoveryInfo& recoveryInfo)
 {
-       chunkId_t theMissing_chunkId = c.GetChunkId();
+       chunkId_t theMissing_chunkId = c.GetChunkId(); //missing chunk
        const MetaFattr* const fa = c.GetFattr();
        long stripe_identifier = (c.GetChunkInfo())->stripe_identifier; 
      
@@ -8218,7 +8229,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
 
            ss << "chunkID=" << vecStart->second << " rs_chunk_index=" << vecStart->first;
            //const CSMap::Entry* cse = mChunkToServerMap.Find(*vecStart);
-           Servers srvs = mChunkToServerMap.GetServers(vecStart->second);
+           Servers srvs = mChunkToServerMap.GetServers(vecStart->second);      //vecStart->second  is the chunkId
 
            Servers::iterator servIterStart = srvs.begin(); 
            Servers::iterator servIterEnd = srvs.end();
@@ -8265,9 +8276,16 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
             if(decodingCoefficient.find(vecStart->first) != decodingCoefficient.end())
             {
                   int decodingCoeff = decodingCoefficient[vecStart->first];
-                  std::string operationSeq = "ABC##[123]#PQR[123]";
+                  //std::string operationSeq = "ABC##[123]#PQR[123]";
 
-                  Servers srvs = mChunkToServerMap.GetServers(vecStart->second);
+                  chunkId_t srcChunkId = vecStart->second; //vecStart->second is the chunkId from where the missing chunk will be reconstructed
+
+                  Servers srvs = mChunkToServerMap.GetServers(srcChunkId);   //vecStart->second is the chunkId
+
+                  CSMap::Entry* const ci = mChunkToServerMap.Find(srcChunkId);
+
+                  const MetaChunkInfo* const chunk = ci->GetChunkInfo();
+
                   Servers::iterator servIterStart = srvs.begin();
                   ChunkServerPtr sourceChunkServer = *servIterStart;
 
@@ -8296,7 +8314,8 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
  
                 for(; opStart != opEnd; opStart++)
                 {
-                     operationTemporalList << "TIME" << opStart->first << "OP" << opStart->second;
+                     //operationTemporalList << "TIME" << opStart->first << "C" << srcChunkId << "V" << chunk->chunkVersion << "S" << chunk->chunkSize << "D" << opStart->second;
+                     operationTemporalList << "TIME" << opStart->first << "C" << srcChunkId << "V" << chunk->chunkVersion << "S" << CHUNKSIZE << "D" << opStart->second;
                 }
                 }
 
