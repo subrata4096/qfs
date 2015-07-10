@@ -949,6 +949,7 @@ ChunkRecoveryInfo()
 /// In this model, the layout manager picks the chunkserver
 /// location and queues the RPC to the chunkserver.
 ///
+struct PartialDecodingInfo;
 class LayoutManager : public ITimeout
 {
 public:
@@ -2131,8 +2132,8 @@ protected:
    void PrintCoefficientsForDecoding(std::map<int,int>& decodingCoefficient);
 
    int GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, std::map<int,int>& decodingCoefficient);
-
-   int PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,std::string> >& operationMapForChunkServers,std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer);
+   
+   int PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,PartialDecodingInfo> >& operationMapForChunkServers,std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer);
 
     //subrata end
 

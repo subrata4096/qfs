@@ -182,7 +182,8 @@ main(int argc, char **argv)
     // write something to the file
     //int numBytes = 2048;
     //int numBytes = 64 << 20;
-    int numBytes = 768 << 20;
+    int numBytes = 384 << 20; //will create one stripe  384 = 64 x 6  (each chunk is 64 MB)
+    //int numBytes = 768 << 20;  //will create 2 stripes for the whole file
     char *dataBuf = new char[numBytes];
 
     generateData(dataBuf, numBytes);

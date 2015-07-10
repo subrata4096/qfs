@@ -8151,10 +8151,41 @@ int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int num
 
         return 0;
 }
-int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,std::string> >& operationMapForChunkServers, std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer)
+struct PartialDecodingInfo
 {
-         std::map<int,std::string> opMap2, opMap4, opMap6, opMapDst; //operation maps for source server index 2,4,6 and Dst
-     
+    int decodingCoeff;
+    std::string hosting_server;
+    PartialDecodingInfo() :
+      decodingCoeff(1),
+      hosting_server("")
+    {}
+
+    PartialDecodingInfo(int decode, std::string hostServer) : 
+      decodingCoeff(decode),
+      hosting_server(hostServer)
+    {}
+};
+int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,PartialDecodingInfo> >& operationMapForChunkServers, std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer)
+{
+         std::map<int,PartialDecodingInfo> opMap2, opMap4, opMap6, opMapDst; //operation maps for source server index 2,4,6 and Dst
+    
+        std::map<int, std::string> sortedServersByPort; // just for testing...
+        for(int i=1; i < 9; i++)
+        {
+            sortedServersByPort[(eightRemainingSourceServeres[i]->GetServerLocation()).port] = eightRemainingSourceServeres[i]->GetHostPortStr();
+        }
+ 
+        std::map<int, std::string> ::  iterator servIter = sortedServersByPort.begin();
+        std::string key1 = servIter->second; servIter++;
+        std::string key2 = servIter->second; servIter++;
+        std::string key3 = servIter->second; servIter++;
+        std::string key4 = servIter->second; servIter++;
+        std::string key5 = servIter->second; servIter++;
+        std::string key6 = servIter->second; servIter++;
+        std::string key7 = servIter->second; servIter++;
+        std::string key8 = servIter->second; 
+
+        /*
         std::string key1 = eightRemainingSourceServeres[1]->GetHostPortStr();
         std::string key2 = eightRemainingSourceServeres[2]->GetHostPortStr();
         std::string key3 = eightRemainingSourceServeres[3]->GetHostPortStr();
@@ -8163,27 +8194,28 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
         std::string key6 = eightRemainingSourceServeres[6]->GetHostPortStr();
         std::string key7 = eightRemainingSourceServeres[7]->GetHostPortStr();
         std::string key8 = eightRemainingSourceServeres[8]->GetHostPortStr();
+        */
 
         std::string dstKey = destinationServer->GetHostPortStr();
         
 
         //ops for round or temporal time = 1
-        std::string op21 = "1-" + key1; //Meaning:  get from 12.0.0.1:21001 AFTER multiplying by decoding coeff "1" and XOR with myself
-        std::string op43 = "1-" + key3;
-        std::string op65 = "1-" + key5;
+        PartialDecodingInfo op21(1,key1); //Meaning:  get from 12.0.0.1:21001 AFTER multiplying by decoding coeff "1" and XOR with myself
+        PartialDecodingInfo op43(1,key3);
+        PartialDecodingInfo op65(1,key5);
         opMap2[1] = op21;     //do this operation for timestep 1 to be performed at source server index = 2
         opMap4[1] = op43;     //do this operation for timestep 1
         opMap6[1] = op65;     //do this operation for timestep 1
             
        
         //ops for round or temporal time = 2
-        std::string op42 = "1-" + key2;
-        std::string opDst6 = "1-" + key6;
+        PartialDecodingInfo op42(1,key2);
+        PartialDecodingInfo opDst6(1,key6);
         opMap4[2] = op42;     //do this operation for timestep 2
         opMapDst[2] = opDst6;   //do this operation for timestep 2
 
         //ops for round or temporal time = 2
-        std::string opDst4 = "1-" + key4;
+        PartialDecodingInfo opDst4(1,key4);
         opMapDst[3] = opDst4;   //do this operation for timestep 3
 
         //Now assign these ops to respective servers who will coordinate the operations
@@ -8234,6 +8266,8 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
        */
 }
 
+
+
 ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, const ChunkRecoveryInfo& recoveryInfo)
 {
        chunkId_t theMissing_chunkId = c.GetChunkId(); //missing chunk
@@ -8258,6 +8292,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
       //subrata : for now hardcode some dumb way for testing the basic framework ..
       std::map<int, ChunkServerPtr> eightRemainingSourceServeres; //N1, N2, N3 etc. we will hardcode the transfer logic in PopulateDistributedRepairOperationTable      
       int remainingSourceServerIndex = 1;       
+      std::map<std::string, chunkId_t> chunkServerToChunkIdMapForThisStripe; // a temporary map. will be used for look-up while creating the operations      
 
        for(; vecStart != vecEnd; vecStart++)
        {
@@ -8280,10 +8315,16 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                //set the source server index
                eightRemainingSourceServeres[remainingSourceServerIndex] = *servIterStart;
                remainingSourceServerIndex++;
-              
+
+               std::string theSrcServerName  =  (*servIterStart)->GetHostPortStr();
+
+               assert(chunkServerToChunkIdMapForThisStripe.find(theSrcServerName) == chunkServerToChunkIdMapForThisStripe.end()); //Be aware this is wrong! In extreme case, one server might host multiple id of the same stripe!
+
+               chunkServerToChunkIdMapForThisStripe[theSrcServerName] = vecStart->second; //Be aware this is wrong! In extreme case, one server might host multiple id of the same stripe!
+
                if(this->serverSet == false)
                {
-               if((*servIterStart)->GetHostPortStr() == "127.0.0.1:21007")  //subrata: *** IMPORTANT ***. For some reason for 2 lost chunks if we set the same server, we are getting Broken Pipe, SIGPIPE error comming from "mNetConnection->StartFlush()" in meta/ChunkServer.cc:1798 => cc/kfsio/NetConnection.h:315
+               if(theSrcServerName == "127.0.0.1:21007")  //subrata: *** IMPORTANT ***. For some reason for 2 lost chunks if we set the same server, we are getting Broken Pipe, SIGPIPE error comming from "mNetConnection->StartFlush()" in meta/ChunkServer.cc:1798 => cc/kfsio/NetConnection.h:315
                {
                   selectedDstChunkPtr = *servIterStart;
                   this->serverSet = true;
@@ -8292,13 +8333,13 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                }
                else
                {
-                  if((*servIterStart)->GetHostPortStr() == "127.0.0.1:21008")
+                  if(theSrcServerName == "127.0.0.1:21008")
                   {
                   selectedDstChunkPtr = *servIterStart;
                   break;
                   }
                }
-               ss << (*servIterStart)->GetHostPortStr() << ","; 
+               ss << theSrcServerName << ","; 
            }
            ss << " | ";
            
@@ -8310,10 +8351,9 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
       // only "some server will get this operation list and they intern will tell others to send rest of the chunks..
       //this is to reduce over head. We want to piggyback as much as possible..
 
-      std::map<std::string, std::map<int,std::string> > operationMapForChunkServers;
+      std::map<std::string, std::map<int,PartialDecodingInfo> > operationMapForChunkServers;
       PopulateDistributedRepairOperationTable(operationMapForChunkServers, eightRemainingSourceServeres, selectedDstChunkPtr);
-
-
+      
       std::map<int,int> decodingCoefficient;
       this->GetPartialDecodingInformation(stripe_identifier, fa->numStripes, fa->numRecoveryStripes, theRS_chunk_index_missing, decodingCoefficient);
 
@@ -8325,9 +8365,16 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
       vecEnd = (stripePos->second).end();
       for(; vecStart != vecEnd; vecStart++)
       {
-            if(decodingCoefficient.find(vecStart->first) != decodingCoefficient.end())
+            if(theMissing_chunkId == vecStart->second)
+             {
+               continue;
+             }
+             
+            //if(decodingCoefficient.find(vecStart->first) != decodingCoefficient.end())
+            if(true) //check
             {
-                  int decodingCoeff = decodingCoefficient[vecStart->first];
+                  //int decodingCoeff = decodingCoefficient[vecStart->first];
+                  int decodingCoeff = 1;
                   //std::string operationSeq = "ABC##[123]#PQR[123]";
 
                   chunkId_t srcChunkId = vecStart->second; //vecStart->second is the chunkId from where the missing chunk will be reconstructed
@@ -8350,26 +8397,33 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
 
                   //std::string thisServerKey = sourceChunkServer->GetServerName() + std::string(":") +  sourceChunkServer->GetHostPortStr();
                   std::string thisServerKey = sourceChunkServer->GetHostPortStr();
-                  std::map<std::string, std::map<int,std::string> > :: iterator opListPos = operationMapForChunkServers.find(thisServerKey);
+                  std::map<std::string, std::map<int,PartialDecodingInfo> > :: iterator opListPos = operationMapForChunkServers.find(thisServerKey);
                   
                  std::stringstream operationTemporalList;
                   
-                  if(opListPos != operationMapForChunkServers.end())
+                  if(opListPos == operationMapForChunkServers.end())
                   {
-                      // continue;
+                       continue;
+                  }
                   
                   
-                  std::map<int,std::string> opMap = opListPos->second;
+                  std::map<int,PartialDecodingInfo> opMap = opListPos->second;
                   //make a string of the temporal list of operations..
-                 std::map<int,std::string> :: iterator opStart = opMap.begin();
-                 std::map<int,std::string> :: iterator opEnd = opMap.end();
+                 std::map<int,PartialDecodingInfo> :: iterator opStart = opMap.begin();
+                 std::map<int,PartialDecodingInfo> :: iterator opEnd = opMap.end();
  
                 for(; opStart != opEnd; opStart++)
                 {
                      //operationTemporalList << "TIME" << opStart->first << "C" << srcChunkId << "V" << chunk->chunkVersion << "S" << chunk->chunkSize << "D" << opStart->second;
-                     operationTemporalList << "TIME" << opStart->first << "C" << srcChunkId << "V" << chunk->chunkVersion << "S" << CHUNKSIZE << "D" << opStart->second;
+                    std::string relevantSourceServer =  (opStart->second).hosting_server;
+                    chunkId_t relevantChunkId = chunkServerToChunkIdMapForThisStripe[relevantSourceServer];
+                    CSMap::Entry* const relevantCInfo = mChunkToServerMap.Find(relevantChunkId);
+                    const MetaChunkInfo* const relevantChunk = relevantCInfo->GetChunkInfo(); 
+                    int relevantDecodeCoeff = (opStart->second).decodingCoeff;
+
+                    operationTemporalList << "TIME" << opStart->first << "C" << relevantChunkId << "V" << relevantChunk->chunkVersion << "S" << CHUNKSIZE << "D" << relevantDecodeCoeff << "-" << relevantSourceServer;
                 }
-                }
+                
 
                  std::string chunkServerOpList(operationTemporalList.str());
 
@@ -8379,7 +8433,8 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
 
                   sourceChunkServer->DistributeRepairInformation(fid, theMissing_chunkId, stripe_identifier , decodingCoeff, chunkServerOpList ,
                   sourceChunkServer, recoveryInfo, recovIt);  // the object pointer does not do anything useful. Used for NextSeq()
-            }
+               }
+            
       }
 
 

@@ -848,6 +848,7 @@ KfsOp::HandleDone(int code, void *data)
 int
 ReadOp::HandleDone(int code, void *data)
 {
+    KFS_LOG_STREAM_INFO << "subrata : ReadOp::HandleDone  called with code=" << code << " and data=" << data << KFS_LOG_EOM;
     if (code == EVENT_DISK_ERROR) {
         status = -1;
         if (data) {
@@ -1618,19 +1619,31 @@ void SendChunkForDistributedRepairOp::Request(ostream &os)
 
 void SendChunkForDistributedRepairOp::Response(ostream &os)
 {
-    //KFS_LOG_EOM << "subrata :  Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM;
+    KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::Response for a chunk from a host for stripe repair " << KFS_LOG_EOM;
 }
 
 int
 SendChunkForDistributedRepairOp::HandleDone(int code, void *data)
 {
     // notify the owning object that the op finished
+    KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone for a chunk from a host for stripe repair " << KFS_LOG_EOM;
+
+    ReadOp* theReadOp = reinterpret_cast<ReadOp*>(data);
+    if(theReadOp == NULL)
+    {
+          KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone :  could not cast data to ReadOp. It becomes NULL" <<  KFS_LOG_EOM;
+          return 0;
+    }
+    const int numRd = (theReadOp->dataBuf).BytesConsumable();
+    KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone :  ReadOp status="<< theReadOp->statusMsg << " and " << "BytesConsumable=" << numRd <<  KFS_LOG_EOM;
+  
+     
     if(clnt) 
     {
-       //clnt->HandleEvent(EVENT_CMD_DONE, this);
+       clnt->HandleEvent(EVENT_CMD_DONE, this);
     }
     else {
-     // gLogger.Submit(this);
+      //gLogger.Submit(this);
     }
     return 0;
 }
@@ -1639,11 +1652,24 @@ int ReadForPartialDecodeOp::HandleDone(int code, void* data)
 {
    
    KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::HandleDone" << KFS_LOG_EOM;
+    
+   ReadOp::HandleDone(code,data);
+   //ReadOp::HandleDone(code,this);
+   if(clnt) {
+      //clnt->HandleEvent(EVENT_CMD_DONE, this);
+   }
+   else {
+     //KFS_LOG_STREAM_ERROR << "subrata :  No clnt!!  ReadForPartialDecodeOp::HandleDone" << KFS_LOG_EOM;
+   }
+
    return 0;
 }
 
 void ReadForPartialDecodeOp::Execute()
 {
+
+   this->numBytes = CHUNKSIZE;    //hack!!   Do not know what exactly this means...
+
    bool isChunkStable = gChunkManager.IsChunkStable(this->chunkId);
    KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Execute  chunkId=" << this->chunkId << " isChunkStable=" << isChunkStable << KFS_LOG_EOM;
 
@@ -1654,8 +1680,8 @@ void ReadForPartialDecodeOp::Execute()
    if((isChunkStable) && ((-1 == lowestTemporalTimeInOperationQueue) || (this->temporal_time <= lowestTemporalTimeInOperationQueue))) //check if what I was requested for is for a timestamp before what I am supposed to get from others (in my queue)
    {
         KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Execute  executing top of the queue chunkId=" << this->chunkId << KFS_LOG_EOM;
-        //ReadOp::Execute();
-        int readStatus = gChunkManager.ReadChunk(this);
+        ReadOp::Execute();
+        //int readStatus = gChunkManager.ReadChunk(this);   // If ONLY this is used. It is crashing beacuse some checkSum info was not loaded
         //SubmitOpResponse(this);          
    }
    else
@@ -1676,6 +1702,7 @@ void ReadForPartialDecodeOp::Request(ostream &os)
 void ReadForPartialDecodeOp::Response(ostream &os)
 {
     KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Response Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM;
+    ReadOp::Response(os);
     return;
 }
 

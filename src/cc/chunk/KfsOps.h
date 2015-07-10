@@ -981,6 +981,7 @@ struct SendChunkForDistributedRepairOp : public KfsClientChunkOp {
           decoding_coefficient(-1)
         {
            SET_HANDLER(this, &SendChunkForDistributedRepairOp::HandleDone);
+           //SET_HANDLER(this, &ReadForPartialDecodeOp::HandleDone);
         }
     ~SendChunkForDistributedRepairOp()
         {}
@@ -1960,6 +1961,18 @@ struct ReadForPartialDecodeOp : public ReadOp {
         .Def("chunkSize",   &ReadForPartialDecodeOp::chunkSize,  int64_t(0))
         ;
     }
+    virtual ostream& ShowSelf(ostream& os) const
+    {
+        return os <<
+            "read-partial:"
+            " chunkId: "      << chunkId <<
+            " chunkversion: " << chunkVersion <<
+            " offset: "       << offset <<
+            " numBytes: "     << numBytes <<
+            (skipVerifyDiskChecksumFlag ? " skip-disk-chksum" : "")
+        ;
+    }
+
 };
 
 
