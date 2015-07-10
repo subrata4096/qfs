@@ -1628,14 +1628,17 @@ SendChunkForDistributedRepairOp::HandleDone(int code, void *data)
     // notify the owning object that the op finished
     KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone for a chunk from a host for stripe repair " << KFS_LOG_EOM;
 
-    ReadOp* theReadOp = reinterpret_cast<ReadOp*>(data);
-    if(theReadOp == NULL)
+    //ReadOp* theReadOp = reinterpret_cast<ReadOp*>(data);
+    IOBuffer* const b = reinterpret_cast<IOBuffer*>(data);
+    if(b == NULL)
     {
           KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone :  could not cast data to ReadOp. It becomes NULL" <<  KFS_LOG_EOM;
           return 0;
     }
-    const int numRd = (theReadOp->dataBuf).BytesConsumable();
-    KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone :  ReadOp status="<< theReadOp->statusMsg << " and " << "BytesConsumable=" << numRd <<  KFS_LOG_EOM;
+    //const int numRd = (theReadOp->dataBuf).BytesConsumable();
+    const int numRd = b->BytesConsumable();
+    //KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone :  ReadOp status="<< theReadOp->statusMsg << " and " << "BytesConsumable=" << numRd <<  KFS_LOG_EOM;
+    KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone :  CHUNKSIZE=" << CHUNKSIZE << " and ReadOp BytesConsumable=" << numRd <<  KFS_LOG_EOM;
   
      
     if(clnt) 
@@ -1661,6 +1664,7 @@ int ReadForPartialDecodeOp::HandleDone(int code, void* data)
    else {
      //KFS_LOG_STREAM_ERROR << "subrata :  No clnt!!  ReadForPartialDecodeOp::HandleDone" << KFS_LOG_EOM;
    }
+   
 
    return 0;
 }
