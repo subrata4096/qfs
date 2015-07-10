@@ -1448,6 +1448,8 @@ int DistributedRepairChunkOp::ParseOperationString(const std::string& operationS
    hostname = hostnameAndPort.substr(0, colonPos);
    std::string portStr = hostnameAndPort.substr(colonPos+1, std::string::npos);
    port = atoi(portStr.c_str());
+
+   return 0;
    
 }
 
@@ -1482,9 +1484,9 @@ DistributedRepairChunkOp::Execute()
    */
       const bool kConnectFlag = true;
       const bool kKeyIsNotEncryptedFlag = true;
-      char* token;
+      char* token = NULL;
       int tokenLen = -1;
-      char* key;
+      char* key = NULL;
       int keyLen = -1;
       const bool theConnectFlag              =
                 gClientManager.GetMutexPtr() == 0;
@@ -1528,15 +1530,22 @@ DistributedRepairChunkOp::Execute()
                 peer.reset();
             }
 
-
+     bool isStable = gChunkManager.IsChunkStable(atoi(chunkIdStr.c_str()));
+    
+     kfsChunkId_t requested_chunkId = atoi(chunkIdStr.c_str());
+     int64_t requested_chunkVersion = atoi(chunkVersion.c_str());
+     size_t requested_chunkSize = atoi(chunkSize.c_str());
+     int requested_temporalTime = atoi(temporalTime.c_str());
+     int requested_decodeCoeff = atoi(decodeCoefficient.c_str()); 
+     
 
      SendChunkForDistributedRepairOp* chunkRepairRequestOp = new SendChunkForDistributedRepairOp();
-     chunkRepairRequestOp->chunkId = atoi(chunkIdStr.c_str());
-     chunkRepairRequestOp->chunkVersion = atoi(chunkVersion.c_str());
-     chunkRepairRequestOp->chunkSize = atoi(chunkSize.c_str());
+     chunkRepairRequestOp->chunkId = requested_chunkId;
+     chunkRepairRequestOp->chunkVersion = requested_chunkVersion;
+     chunkRepairRequestOp->chunkSize = requested_chunkSize;
      chunkRepairRequestOp->stripe_identifier = this->stripe_identifier;
-     chunkRepairRequestOp->temporal_time = atoi(temporalTime.c_str());
-     chunkRepairRequestOp->decoding_coefficient = atoi(decodeCoefficient.c_str());
+     chunkRepairRequestOp->temporal_time = requested_temporalTime;
+     chunkRepairRequestOp->decoding_coefficient = requested_decodeCoeff;
      
     //Enqueue a KfsOp on for the Peer may be. This Op will be like a get request for chunk. Will also have the temporal ordering id
     //peer->Enqueue(KfsOp* op);
@@ -1547,6 +1556,8 @@ DistributedRepairChunkOp::Execute()
     }
     peer->Enqueue(chunkRepairRequestOp);
 
+    //now queue all this requests. We will gradually remove them from the queue as we start getting responses back with the chunk result..
+    int retVal = ChunkManager::insertIntoPartialDecodingOpQueue(this->stripe_identifier, requested_temporalTime, chunkRepairRequestOp);
 
     //The response will be handed by RemoteSyncSM::HandleResponse   -- but do not know how to handle that yet..
 
@@ -1633,7 +1644,26 @@ int ReadForPartialDecodeOp::HandleDone(int code, void* data)
 
 void ReadForPartialDecodeOp::Execute()
 {
-   KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Execute" << KFS_LOG_EOM;
+   bool isChunkStable = gChunkManager.IsChunkStable(this->chunkId);
+   KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Execute  chunkId=" << this->chunkId << " isChunkStable=" << isChunkStable << KFS_LOG_EOM;
+
+
+   //subrata :  we will only execute this if the timestamp (temporal time) at the top of the queue is GREATER than the temporal time of the operation..
+   int lowestTemporalTimeInOperationQueue = ChunkManager::getLowestTemporalTimeInPartialDecodingOpQueue(this->stripe_identifier);
+
+   if((isChunkStable) && ((-1 == lowestTemporalTimeInOperationQueue) || (this->temporal_time <= lowestTemporalTimeInOperationQueue))) //check if what I was requested for is for a timestamp before what I am supposed to get from others (in my queue)
+   {
+        KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Execute  executing top of the queue chunkId=" << this->chunkId << KFS_LOG_EOM;
+        //ReadOp::Execute();
+        int readStatus = gChunkManager.ReadChunk(this);
+        //SubmitOpResponse(this);          
+   }
+   else
+   {
+        //ReadOp::Execute();
+        //SubmitOpResponse(this);          
+      //wait again in the queue
+   }
    return;
 }
 

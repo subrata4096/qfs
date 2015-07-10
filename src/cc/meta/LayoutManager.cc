@@ -8151,9 +8151,50 @@ int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int num
 
         return 0;
 }
-
-int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,std::string> >& operationMapForChunkServers)
+int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,std::string> >& operationMapForChunkServers, std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer)
 {
+         std::map<int,std::string> opMap2, opMap4, opMap6, opMapDst; //operation maps for source server index 2,4,6 and Dst
+     
+        std::string key1 = eightRemainingSourceServeres[1]->GetHostPortStr();
+        std::string key2 = eightRemainingSourceServeres[2]->GetHostPortStr();
+        std::string key3 = eightRemainingSourceServeres[3]->GetHostPortStr();
+        std::string key4 = eightRemainingSourceServeres[4]->GetHostPortStr();
+        std::string key5 = eightRemainingSourceServeres[5]->GetHostPortStr();
+        std::string key6 = eightRemainingSourceServeres[6]->GetHostPortStr();
+        std::string key7 = eightRemainingSourceServeres[7]->GetHostPortStr();
+        std::string key8 = eightRemainingSourceServeres[8]->GetHostPortStr();
+
+        std::string dstKey = destinationServer->GetHostPortStr();
+        
+
+        //ops for round or temporal time = 1
+        std::string op21 = "1-" + key1; //Meaning:  get from 12.0.0.1:21001 AFTER multiplying by decoding coeff "1" and XOR with myself
+        std::string op43 = "1-" + key3;
+        std::string op65 = "1-" + key5;
+        opMap2[1] = op21;     //do this operation for timestep 1 to be performed at source server index = 2
+        opMap4[1] = op43;     //do this operation for timestep 1
+        opMap6[1] = op65;     //do this operation for timestep 1
+            
+       
+        //ops for round or temporal time = 2
+        std::string op42 = "1-" + key2;
+        std::string opDst6 = "1-" + key6;
+        opMap4[2] = op42;     //do this operation for timestep 2
+        opMapDst[2] = opDst6;   //do this operation for timestep 2
+
+        //ops for round or temporal time = 2
+        std::string opDst4 = "1-" + key4;
+        opMapDst[3] = opDst4;   //do this operation for timestep 3
+
+        //Now assign these ops to respective servers who will coordinate the operations
+        operationMapForChunkServers[key2] = opMap2;  //list of operations to be performed by server = 2
+        operationMapForChunkServers[key4] = opMap4;  //list of operations to be performed by server = 4
+        operationMapForChunkServers[key6] = opMap6;   
+        operationMapForChunkServers[dstKey] = opMapDst;  //list of operations to be performed by final destination server where the repaired chunk will be hosted
+
+        return 0;        
+
+        /*
         std::string key1 = "127.0.0.1:21005";
         std::string key2 = "127.0.0.1:21007";
         std::string key3 = "127.0.0.1:21008";
@@ -8190,6 +8231,7 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
        std::map<int,std::string> opMap6;
          opMap6[2] = op2;     //do this operation for timestep 1
         operationMapForChunkServers[key6] = opMap6;
+       */
 }
 
 ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, const ChunkRecoveryInfo& recoveryInfo)
@@ -8204,12 +8246,6 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
 
 
 
-      //populate the operation map that will perform distributed repair...
-      // only "some server will get this operation list and they intern will tell others to send rest of the chunks..
-      //this is to reduce over head. We want to piggyback as much as possible..
-
-      std::map<std::string, std::map<int,std::string> > operationMapForChunkServers;
-      PopulateDistributedRepairOperationTable(operationMapForChunkServers);
  
        std::stringstream ss;
  
@@ -8217,6 +8253,12 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
      
        int theRS_chunk_index_missing = -1; 
        ss << "subrata: " <<  "the missing chunkId= "<< theMissing_chunkId << "  other parts : ";
+
+
+      //subrata : for now hardcode some dumb way for testing the basic framework ..
+      std::map<int, ChunkServerPtr> eightRemainingSourceServeres; //N1, N2, N3 etc. we will hardcode the transfer logic in PopulateDistributedRepairOperationTable      
+      int remainingSourceServerIndex = 1;       
+
        for(; vecStart != vecEnd; vecStart++)
        {
            if(theMissing_chunkId == vecStart->second)
@@ -8234,6 +8276,11 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
            ss << " locations= ";
            for(; servIterStart != servIterEnd ; ++servIterStart) 
            {
+
+               //set the source server index
+               eightRemainingSourceServeres[remainingSourceServerIndex] = *servIterStart;
+               remainingSourceServerIndex++;
+              
                if(this->serverSet == false)
                {
                if((*servIterStart)->GetHostPortStr() == "127.0.0.1:21007")  //subrata: *** IMPORTANT ***. For some reason for 2 lost chunks if we set the same server, we are getting Broken Pipe, SIGPIPE error comming from "mNetConnection->StartFlush()" in meta/ChunkServer.cc:1798 => cc/kfsio/NetConnection.h:315
@@ -8258,6 +8305,13 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
        } 
 
        KFS_LOG_STREAM_ERROR << ss.str() << KFS_LOG_EOM;
+      
+      //populate the operation map that will perform distributed repair...
+      // only "some server will get this operation list and they intern will tell others to send rest of the chunks..
+      //this is to reduce over head. We want to piggyback as much as possible..
+
+      std::map<std::string, std::map<int,std::string> > operationMapForChunkServers;
+      PopulateDistributedRepairOperationTable(operationMapForChunkServers, eightRemainingSourceServeres, selectedDstChunkPtr);
 
 
       std::map<int,int> decodingCoefficient;

@@ -115,6 +115,18 @@ public:
     ChunkManager();
     ~ChunkManager();
 
+    //subrata add ... for operation store during partial repair
+    //needs synchornization. will be accessed from multiple threads (may be, not sure yet)     
+ 
+    //             key1=stripeID  key2=temporalOrder, value2=decoding operations to be passed to the peers
+    static std::map<long, std::map<int,std::map<kfsChunkId_t, SendChunkForDistributedRepairOp*> > > partialDecodingOpQueue;   //even if this is a map. this will be treated like a queue. "map" is to ensure that it will remain sorted based on temporal order .. 
+    //associated insert routine
+    static int insertIntoPartialDecodingOpQueue(long theStripe_identifier, int temporalTime, SendChunkForDistributedRepairOp* theOp);
+    //associated delete routine 
+    static int deleteFromPartialDecodingOpQueue(long theStripe_identifier, int temporalTime, kfsChunkId_t thechunkId);
+    static int getLowestTemporalTimeInPartialDecodingOpQueue(long theStripe_identifier);
+    //subrata end
+
     bool SetParameters(const Properties& prop);
     /// Init function to configure the chunk manager object.
     bool Init(const vector<string>& chunkDirs, const Properties& prop);
@@ -887,6 +899,7 @@ private:
     ChunkManager(const ChunkManager&);
     ChunkManager& operator=(const ChunkManager&);
 };
+
 
 inline ChunkManager::PendingWrites::OpListEntry::OpListEntry()
 {

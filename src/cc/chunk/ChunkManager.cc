@@ -36,6 +36,7 @@
 #include "BufferManager.h"
 #include "ClientManager.h"
 #include "ClientSM.h"
+#include "KfsOps.h"
 
 #include "common/MsgLogger.h"
 #include "common/kfstypes.h"
@@ -179,6 +180,7 @@ struct ChunkManager::ChunkDirInfo : public ITimeout
             globalNetManager().UnRegisterTimeoutHandler(this);
         }
      }
+
     int FsSpaceAvailDone(int code, void* data);
     int CheckDirDone(int code, void* data);
     int CheckEvacuateFileDone(int code, void* data);
@@ -1178,6 +1180,115 @@ private:
     ChunkInfoHandle(const  ChunkInfoHandle&);
     ChunkInfoHandle& operator=(const  ChunkInfoHandle&);
 };
+
+
+//subrata add
+
+std::map<long, std::map<int,std::map<kfsChunkId_t, SendChunkForDistributedRepairOp*> > > ChunkManager::partialDecodingOpQueue;
+
+ //associated insert routine
+//static 
+int ChunkManager::insertIntoPartialDecodingOpQueue(long theStripe_identifier, int temporalTime, SendChunkForDistributedRepairOp* theOp)
+{
+   std::map<long, std::map<int,std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> > >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
+   if(stripePos == partialDecodingOpQueue.end())
+   {
+        std::map<int,std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> > theTemporalMap;
+
+        std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> chunkIdOpMap;
+        chunkIdOpMap[theOp->chunkId] = theOp;
+
+        theTemporalMap[temporalTime] = chunkIdOpMap;
+        partialDecodingOpQueue[theStripe_identifier] = theTemporalMap;
+        return 0;
+   }
+   else
+   {
+      std::map<int,std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> > ::iterator temporalPos = (stripePos->second).find(temporalTime);
+      if(temporalPos == (stripePos->second).end())
+      {
+          std::map<kfsChunkId_t, SendChunkForDistributedRepairOp*> chunkIdOpMap;
+          chunkIdOpMap[theOp->chunkId] = theOp;
+          (stripePos->second)[temporalTime] = chunkIdOpMap;
+          return 0;
+      }
+      else
+      {
+        std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> ::iterator chunkPos = (temporalPos->second).find(theOp->chunkId);
+        if(chunkPos != (temporalPos->second).end())
+        {
+           assert(chunkPos != (temporalPos->second).end()); //we should not have two request for same chunkid at the same time! well, may be we should not see same chunk id twice. ever!!
+          return 1;
+        }
+        else
+        {
+            //(temporalPos->second)[theOp->chunkId] = theOp;
+            return 0;
+        }
+      }
+   }
+   //something wrong ??  we should have returned by now!
+   return 1;
+}
+//associated delete routine 
+//static 
+int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier, int theTemporalTime, kfsChunkId_t thechunkId)
+{
+   std::map<long, std::map<int,std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> > >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
+
+   if(stripePos == partialDecodingOpQueue.end())
+   {
+      return 1;
+   }
+   std::map<int,std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> > ::iterator temporalPos = (stripePos->second).find(theTemporalTime);
+   if(temporalPos == (stripePos->second).end())
+   {
+     return 1;
+   }
+   std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> ::iterator chunkPos = (temporalPos->second).find(thechunkId);
+   if(chunkPos == (temporalPos->second).end())
+   {
+     return 1;
+   }
+   (temporalPos->second).erase(chunkPos);
+   
+   if((temporalPos->second).size() == 0)
+   {
+      (stripePos->second).erase(temporalPos);  
+   }
+   if((stripePos->second).size() == 0)
+   {
+     ChunkManager::partialDecodingOpQueue.erase(stripePos);
+   }
+
+  return 0;
+
+   
+}
+
+//static
+//return value meaning:
+//-1 => no entry for this strip => safe to procced
+//or else return the lowest temporal time .... proceed only if the temporal time of the resquested operation is LESS than thihs 
+int ChunkManager::getLowestTemporalTimeInPartialDecodingOpQueue(long theStripe_identifier)
+{
+  std::map<long, std::map<int,std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> > >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
+
+   if(stripePos == ChunkManager::partialDecodingOpQueue.end())
+   {
+      return -1;
+   }
+   std::map<int,std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> > :: iterator beginPos = (stripePos->second).begin();
+   if(beginPos ==  (stripePos->second).end())
+   {
+     return -1;
+   }
+   //else return the lowest value. Remeber the map is already sorted by default!!
+   return beginPos->first;
+}
+//subrata end
+
+
 
 inline ChunkInfoHandle*
 ChunkManager::AddMapping(ChunkInfoHandle* cih)
