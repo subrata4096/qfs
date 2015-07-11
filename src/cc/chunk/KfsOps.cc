@@ -871,6 +871,7 @@ ReadOp::HandleDone(int code, void *data)
             return 0; // Retry.
         }
         numBytesIO = dataBuf.BytesConsumable();
+        KFS_LOG_STREAM_ERROR << "subrata :  ReadOp::HandleDone :  we are trying to send BytesConsumable=" << numBytesIO <<  KFS_LOG_EOM;
         if (status == 0) {
             // checksum verified
             status = numBytesIO;
@@ -1657,6 +1658,15 @@ int ReadForPartialDecodeOp::HandleDone(int code, void* data)
    KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::HandleDone" << KFS_LOG_EOM;
     
    ReadOp::HandleDone(code,data);
+   //For some reason the receiver is getting less data compared to the actual chunk size. We want to check here how much data we are actually sending..
+   IOBuffer* const b = reinterpret_cast<IOBuffer*>(data);
+   if(b)
+   {
+       const int numRd = b->BytesConsumable();
+       KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::HandleDone :  we are trying to send BytesConsumable=" << numRd <<  KFS_LOG_EOM;
+   }
+   
+
    //ReadOp::HandleDone(code,this);
    if(clnt) {
       //clnt->HandleEvent(EVENT_CMD_DONE, this);
@@ -1707,6 +1717,7 @@ void ReadForPartialDecodeOp::Response(ostream &os)
 {
     KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Response Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM;
     ReadOp::Response(os);
+    //os.flush();
     return;
 }
 

@@ -727,7 +727,8 @@ RemoteSyncSM::HandleResponse(IOBuffer& iobuf, int msgLen)
         if (! op->GetResponseContent(iobuf, mReplyNumBytes)) {
             KFS_LOG_STREAM_ERROR <<
                 "invalid response content:"
-                " length: " << mReplySeqNum <<
+                //" length: " << mReplySeqNum <<
+                " length: " << mReplyNumBytes <<
                 " " << op->Show() <<
             KFS_LOG_EOM;
             ResetConnection();
