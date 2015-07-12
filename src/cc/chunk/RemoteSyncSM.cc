@@ -719,7 +719,8 @@ RemoteSyncSM::HandleResponse(IOBuffer& iobuf, int msgLen)
         it = mDispatchedOps.find(mReplySeqNum);
     }
     if (it != mDispatchedOps.end()) {
-        KfsOp* const op = it->second;
+        //KfsOp* const op = it->second; //subrata : the const was causing not calling of virtual functions
+        KfsOp* op = it->second;
         if (! op) {
             die("invalid null op");
             return false;

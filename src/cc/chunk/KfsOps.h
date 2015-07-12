@@ -303,6 +303,7 @@ struct KfsOp : public KfsCallbackObj
     int64_t         startTime;
     BufferBytes     bufferBytes;
     NextOp          nextOp;
+    string          theName; //subrata : jusr for debugging... should delete later...
   
     KfsOp(KfsOp_t o, kfsSeq_t s, KfsCallbackObj *c = 0);
     void Cancel() {
@@ -334,7 +335,10 @@ struct KfsOp : public KfsCallbackObj
     virtual bool ParseResponseContent(istream& /* is */, int /* len */)
         { return false; }
     virtual bool GetResponseContent(IOBuffer& /* iobuf */, int len)
-        { return (len <= 0); }
+        {  //bool retVal = (len <= 0);
+           //retVal = true; //subrata. This should never be called. I am "incorreectly forcing it to be true. Let's see
+           KFS_LOG_STREAM_ERROR << "subrata : INCORRECTLY called KfsOps::GetResponseContent opName = " << this->theName << " where is the virtual function ?? " << KFS_LOG_EOM;
+           return (len <= 0); }
     virtual bool IsChunkReadOp(
         int64_t& /* numBytes */, kfsChunkId_t& /* chunkId */) { return false; }
     virtual BufferManager* GetDeviceBufferManager(
@@ -950,75 +954,6 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
 
 
 };
-struct SendChunkForDistributedRepairOp : public KfsClientChunkOp {
-    int64_t      chunkVersion; // output
-    bool         readVerifyFlag;
-    int64_t      chunkSize; // output
-    IOBuffer     dataBuf; // buffer with the checksum info
-    size_t       numBytesIO;
-    //ReadOp       readOp; // internally generated
-    int64_t      numBytesScrubbed;
-    const char*  requestChunkAccess;
-    enum { kChunkReadSize = 1 << 20, kChunkMetaReadSize = 16 << 10 };
-    kfsChunkId_t chunkid;
-    long stripe_identifier;
-    int temporal_time;
-    int decoding_coefficient;
-
-    SendChunkForDistributedRepairOp(kfsSeq_t s = 0)
-        : KfsClientChunkOp(CMD_GET_REPAIR_CHUNK, s),
-          chunkVersion(0),
-          readVerifyFlag(false),
-          chunkSize(0),
-          dataBuf(),
-          numBytesIO(0),
-          //readOp(0),
-          numBytesScrubbed(0),
-          requestChunkAccess(0),
-          chunkid(-1),
-          stripe_identifier(-1),
-          temporal_time(-1),
-          decoding_coefficient(-1)
-        {
-           SET_HANDLER(this, &SendChunkForDistributedRepairOp::HandleDone);
-           //SET_HANDLER(this, &ReadForPartialDecodeOp::HandleDone);
-        }
-    ~SendChunkForDistributedRepairOp()
-        {}
-    virtual void Execute();
-    virtual void Request(ostream &os);
-    virtual void Response(ostream &os);
-    void ResponseContent(IOBuffer*& buf, int& size) {
-        buf  = status >= 0 ? &dataBuf : 0;
-        size = buf ? numBytesIO : 0;
-    }
-    virtual ostream& ShowSelf(ostream& os) const
-    {
-        return os <<
-            "send-chunk-for-repair:"
-            " seq: "          << seq <<
-            " chunkid: "      << chunkId <<
-            " chunkversion: " << chunkVersion
-        ;
-    }
-    /*
-    template<typename T> static T& ParserDef(T& parser)
-     {
-        return KfsClientChunkOp::ParserDef(parser)
-        .Def("STRIPE-IDENTIFIER",   &DistributedRepairChunkOp::stripe_identifier,  long(-1))
-        .Def("Decoding-coefficient",   &DistributedRepairChunkOp::decoding_coefficient,  int(-1))
-        .Def("TEMPORAL_TIME",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
-        .Def("Chunk-handle",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
-        .Def("Chunk-version",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
-        .Def("Num-bytes",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
-        ;
-    }
-    */
-    virtual int HandleDone(int code, void *data);
-
-};
-
-//subrata end
 
 struct HeartbeatOp : public KfsOp {
     int64_t           metaEvacuateCount; // input
@@ -1906,6 +1841,7 @@ struct ReadOp : public KfsClientChunkOp {
     virtual bool ParseResponse(const Properties& props, IOBuffer& iobuf);
     virtual bool GetResponseContent(IOBuffer& iobuf, int len)
     {
+        KFS_LOG_STREAM_ERROR << "subrata : called ReadOp::GetResponseContent. This os CORRECT virtual function? " << KFS_LOG_EOM;
         const int nmv = dataBuf.Move(&iobuf, len);
         if (0 <= len && nmv != len) {
             return false;
@@ -1942,6 +1878,7 @@ struct ReadForPartialDecodeOp : public ReadOp {
           temporal_time(-1),
           decoding_coefficient(-1)
         {
+           this->theName = "ReadForPartialDecodeOp";
            SET_HANDLER(this, &ReadForPartialDecodeOp::HandleDone);
         }
     ~ReadForPartialDecodeOp()
@@ -1950,6 +1887,17 @@ struct ReadForPartialDecodeOp : public ReadOp {
     virtual void Request(ostream &os);
     virtual void Response(ostream &os);
     virtual int HandleDone(int code, void* data);
+     virtual bool GetResponseContent(IOBuffer& iobuf, int len)
+    {
+        KFS_LOG_STREAM_ERROR << "subrata : called ReadForPartialDecodeOp::GetResponseContent. This os CORRECT virtual function? " << KFS_LOG_EOM;
+        const int nmv = dataBuf.Move(&iobuf, len);
+        if (0 <= len && nmv != len) {
+            return false;
+        }
+        numBytesIO = len;
+        VerifyReply();
+        return true;
+    }
     template<typename T> static T& ParserDef(T& parser)
      {
         //return KfsClientChunkOp::ParserDef(parser)
@@ -1975,6 +1923,90 @@ struct ReadForPartialDecodeOp : public ReadOp {
 
 };
 
+
+//struct SendChunkForDistributedRepairOp : public KfsClientChunkOp {
+struct SendChunkForDistributedRepairOp : public ReadOp {
+    //int64_t      chunkVersion; // output
+    //bool         readVerifyFlag;
+    int64_t      chunkSize; // output
+    //IOBuffer     dataBuf; // buffer with the checksum info
+    //size_t       numBytesIO;
+    //ReadOp       readOp; // internally generated
+    //int64_t      numBytesScrubbed;
+    //const char*  requestChunkAccess;
+    //enum { kChunkReadSize = 1 << 20, kChunkMetaReadSize = 16 << 10 };
+    //kfsChunkId_t chunkid;
+    long stripe_identifier;
+    int temporal_time;
+    int decoding_coefficient;
+
+    SendChunkForDistributedRepairOp(kfsSeq_t s = 0)
+        : ReadOp(CMD_GET_REPAIR_CHUNK, s),
+        //: KfsClientChunkOp(CMD_GET_REPAIR_CHUNK, s),
+          //chunkVersion(0),
+          //readVerifyFlag(false),
+          chunkSize(0),
+          //dataBuf(),
+          //numBytesIO(0),
+          //readOp(0),
+          //numBytesScrubbed(0),
+          //requestChunkAccess(0),
+          //chunkid(-1),
+          stripe_identifier(-1),
+          temporal_time(-1),
+          decoding_coefficient(-1)
+        {
+           this->theName = "SendChunkForDistributedRepairOp";
+           SET_HANDLER(this, &SendChunkForDistributedRepairOp::HandleDone);
+           //SET_HANDLER(this, &ReadForPartialDecodeOp::HandleDone);
+        }
+    ~SendChunkForDistributedRepairOp()
+        {}
+    virtual void Execute();
+    virtual void Request(ostream &os);
+    virtual void Response(ostream &os);
+    void ResponseContent(IOBuffer*& buf, int& size) {
+        buf  = status >= 0 ? &dataBuf : 0;
+        size = buf ? numBytesIO : 0;
+    }
+    virtual ostream& ShowSelf(ostream& os) const
+    {
+        return os <<
+            "send-chunk-for-repair:"
+            " seq: "          << seq <<
+            " chunkid: "      << chunkId <<
+            " chunkversion: " << chunkVersion
+        ;
+    }
+    virtual bool GetResponseContent(IOBuffer& iobuf, int len)
+    {
+        const int nmv = dataBuf.Move(&iobuf, len);
+        
+       KFS_LOG_STREAM_ERROR << "subrata : called SendChunkForDistributedRepairOp::GetResponseContent. Moved=" << nmv << "outof len=" << len << " iobuf="<< &iobuf << " dataBuf=" << &dataBuf << KFS_LOG_EOM;
+       
+        if (0 <= len && nmv != len) {
+            return false;
+        }
+        numBytesIO = len;
+        VerifyReply();
+        return true;
+    }
+    /*
+    template<typename T> static T& ParserDef(T& parser)
+     {
+        return KfsClientChunkOp::ParserDef(parser)
+        .Def("STRIPE-IDENTIFIER",   &DistributedRepairChunkOp::stripe_identifier,  long(-1))
+        .Def("Decoding-coefficient",   &DistributedRepairChunkOp::decoding_coefficient,  int(-1))
+        .Def("TEMPORAL_TIME",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        .Def("Chunk-handle",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        .Def("Chunk-version",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        .Def("Num-bytes",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        ;
+    }
+    */
+    virtual int HandleDone(int code, void *data);
+
+};
 
 //subrata end
 
@@ -2179,6 +2211,8 @@ struct GetChunkMetadataOp : public KfsClientChunkOp {
     }
     virtual bool GetResponseContent(IOBuffer& iobuf, int len)
     {
+        KFS_LOG_STREAM_ERROR << "subrata : called GetChunkMetadataOp::GetResponseContent. This os CORRECT virtual function? " << KFS_LOG_EOM;
+
         return (len < 0 || dataBuf.Move(&iobuf, len) == len);
     }
     template<typename T> static T& ParserDef(T& parser)

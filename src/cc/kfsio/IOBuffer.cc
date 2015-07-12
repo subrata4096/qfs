@@ -42,6 +42,9 @@
 #include "IOBuffer.h"
 #include "Globals.h"
 
+//subrata add
+#include "common/MsgLogger.h"
+//subrata end
 namespace KFS
 {
 
@@ -1227,6 +1230,10 @@ IOBuffer::Write(int fd)
         assert(mByteCount >= totWr);
         mByteCount -= totWr;
     }
+    //subrata add
+    //only for debugging
+    //KFS_LOG_STREAM_ERROR << "subrata : total wrote totWr="<< totWr << " outof mByteCount="<< mByteCount << KFS_LOG_EOM;
+    //subrata end
     DebugVerify(true);
     return totWr;
 }
