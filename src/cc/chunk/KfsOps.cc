@@ -1643,7 +1643,8 @@ SendChunkForDistributedRepairOp::HandleDone(int code, void *data)
     const int numRdBuf = (this->dataBuf).BytesConsumable();
     //KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone :  ReadOp status="<< theReadOp->statusMsg << " and " << "BytesConsumable=" << numRd <<  KFS_LOG_EOM;
     KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone :  CHUNKSIZE=" << CHUNKSIZE << " and BytesConsumable from own dataBuf(" << &dataBuf <<")="<< numRdBuf<< KFS_LOG_EOM;
-  
+   
+    int retVal = ChunkManager::deleteFromPartialDecodingOpQueue(this->stripe_identifier, this->temporal_time, this->chunkId);
      
     if(clnt) 
     {
