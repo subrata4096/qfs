@@ -8224,6 +8224,12 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
         operationMapForChunkServers[key6] = opMap6;   
         operationMapForChunkServers[dstKey] = opMapDst;  //list of operations to be performed by final destination server where the repaired chunk will be hosted
 
+
+        KFS_LOG_STREAM_ERROR << "subrata PopulateDistributedRepairOperationTable : for " << key2 << " ops= " << op21.hosting_server << KFS_LOG_EOM;
+        KFS_LOG_STREAM_ERROR << "subrata PopulateDistributedRepairOperationTable : for " << key4 << " ops= " << op43.hosting_server << ", " << op42.hosting_server << KFS_LOG_EOM;
+        KFS_LOG_STREAM_ERROR << "subrata PopulateDistributedRepairOperationTable : for " << key6 << " ops= " << op65.hosting_server << KFS_LOG_EOM;
+        KFS_LOG_STREAM_ERROR << "subrata PopulateDistributedRepairOperationTable : for " << dstKey << " ops= " << opDst6.hosting_server << ", " << opDst4.hosting_server << KFS_LOG_EOM;
+       
         return 0;        
 
         /*
@@ -8267,6 +8273,22 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
 }
 
 
+ChunkServerPtr LayoutManager::GetDestinationServerForRepair(std::map<std::string,bool>& existingHosts)
+{
+   //Try to find a server which is not hosting this stripe...
+   Servers::iterator chunkServerBegin = mChunkServers.begin(); 
+   Servers::iterator chunkServerEnd = mChunkServers.end(); 
+   for( ; chunkServerBegin != chunkServerEnd; chunkServerBegin++ )
+   {
+      if(existingHosts.find((*chunkServerBegin)->GetHostPortStr()) == existingHosts.end())
+      {
+             return (*chunkServerBegin);
+      }     
+   }
+   //no  server found with no-clash.. take the first one
+   chunkServerBegin = mChunkServers.begin();
+   return (*chunkServerBegin);
+}
 
 ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, const ChunkRecoveryInfo& recoveryInfo)
 {
@@ -8277,7 +8299,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
        std::map<long, std::map<int,chunkId_t> > :: iterator stripePos = stripeIdentifierToChunkIDMap.find(stripe_identifier);
        std::map<int,chunkId_t> :: iterator vecStart = (stripePos->second).begin(); 
        std::map<int,chunkId_t> :: iterator vecEnd = (stripePos->second).end(); 
-
+      
 
 
  
@@ -8291,6 +8313,8 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
 
       //subrata : for now hardcode some dumb way for testing the basic framework ..
       std::map<int, ChunkServerPtr> eightRemainingSourceServeres; //N1, N2, N3 etc. we will hardcode the transfer logic in PopulateDistributedRepairOperationTable      
+      std::map<std::string, bool> existingHosts;//
+       
       int remainingSourceServerIndex = 1;       
       std::map<std::string, chunkId_t> chunkServerToChunkIdMapForThisStripe; // a temporary map. will be used for look-up while creating the operations      
 
@@ -8314,6 +8338,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
 
                //set the source server index
                eightRemainingSourceServeres[remainingSourceServerIndex] = *servIterStart;
+               existingHosts[(*servIterStart)->GetHostPortStr()] = true;
                remainingSourceServerIndex++;
 
                std::string theSrcServerName  =  (*servIterStart)->GetHostPortStr();
@@ -8322,6 +8347,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
 
                chunkServerToChunkIdMapForThisStripe[theSrcServerName] = vecStart->second; //Be aware this is wrong! In extreme case, one server might host multiple id of the same stripe!
 
+               /*
                if(this->serverSet == false)
                {
                if(theSrcServerName == "127.0.0.1:21007")  //subrata: *** IMPORTANT ***. For some reason for 2 lost chunks if we set the same server, we are getting Broken Pipe, SIGPIPE error comming from "mNetConnection->StartFlush()" in meta/ChunkServer.cc:1798 => cc/kfsio/NetConnection.h:315
@@ -8339,6 +8365,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                   break;
                   }
                }
+               */
                ss << theSrcServerName << ","; 
            }
            ss << " | ";
@@ -8350,6 +8377,8 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
       //populate the operation map that will perform distributed repair...
       // only "some server will get this operation list and they intern will tell others to send rest of the chunks..
       //this is to reduce over head. We want to piggyback as much as possible..
+
+      selectedDstChunkPtr = this->GetDestinationServerForRepair(existingHosts);
 
       std::map<std::string, std::map<int,PartialDecodingInfo> > operationMapForChunkServers;
       PopulateDistributedRepairOperationTable(operationMapForChunkServers, eightRemainingSourceServeres, selectedDstChunkPtr);

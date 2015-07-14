@@ -894,6 +894,7 @@ struct ReplicateChunkOp : public KfsOp {
 
 //subrata add
 
+
 struct PartialRepairOp : public KfsOp {
 
      std::string stringValue;
@@ -909,7 +910,7 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
 
       long stripe_identifier;
       int decoding_coefficient;
-      std::list<PartialRepairOp> opSequenceList;
+      //std::list<PartialRepairOp> opSequenceList;
       std::string theSequenceString;
      
       //not sure if these will be needed
@@ -1870,13 +1871,15 @@ struct ReadForPartialDecodeOp : public ReadOp {
     long stripe_identifier;
     int temporal_time;
     int decoding_coefficient;
+    bool isReadyToReturnForPartialDecoding;
 
     ReadForPartialDecodeOp(kfsSeq_t s = 0)
         : ReadOp(CMD_READ_FOR_PARTIAL_DECODE, s),
           chunkSize(0),
           stripe_identifier(-1),
           temporal_time(-1),
-          decoding_coefficient(-1)
+          decoding_coefficient(-1),
+          isReadyToReturnForPartialDecoding(false)
         {
            this->theName = "ReadForPartialDecodeOp";
            SET_HANDLER(this, &ReadForPartialDecodeOp::HandleDone);
@@ -1904,7 +1907,7 @@ struct ReadForPartialDecodeOp : public ReadOp {
         return ReadOp::ParserDef(parser)
         .Def("STRIPE-IDENTIFIER",   &ReadForPartialDecodeOp::stripe_identifier,  long(-1))
         .Def("Decoding-coefficient",   &ReadForPartialDecodeOp::decoding_coefficient,  int(-1))
-        .Def("TEMPORAL_TIME",   &ReadForPartialDecodeOp::temporal_time,  int(0))
+        .Def("TEMPORAL-TIME",   &ReadForPartialDecodeOp::temporal_time,  int(0))
         //.Def("Chunk-handle",   &ReadForPartialDecodeOp::chunkid,  kfsChunkId_t(-1))
         .Def("chunkSize",   &ReadForPartialDecodeOp::chunkSize,  int64_t(0))
         ;
@@ -1917,9 +1920,12 @@ struct ReadForPartialDecodeOp : public ReadOp {
             " chunkversion: " << chunkVersion <<
             " offset: "       << offset <<
             " numBytes: "     << numBytes <<
+            " decoding_coefficient: "     << decoding_coefficient <<
+            " isReadyToReturnForPartialDecoding: "     << isReadyToReturnForPartialDecoding <<
             (skipVerifyDiskChecksumFlag ? " skip-disk-chksum" : "")
         ;
     }
+    bool XORFromAllTheIssuedOperation(); 
 
 };
 
@@ -1991,21 +1997,34 @@ struct SendChunkForDistributedRepairOp : public ReadOp {
         VerifyReply();
         return true;
     }
-    /*
+    
     template<typename T> static T& ParserDef(T& parser)
      {
-        return KfsClientChunkOp::ParserDef(parser)
-        .Def("STRIPE-IDENTIFIER",   &DistributedRepairChunkOp::stripe_identifier,  long(-1))
-        .Def("Decoding-coefficient",   &DistributedRepairChunkOp::decoding_coefficient,  int(-1))
-        .Def("TEMPORAL_TIME",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
-        .Def("Chunk-handle",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
-        .Def("Chunk-version",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
-        .Def("Num-bytes",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
+        return ReadOp::ParserDef(parser)
+        .Def("STRIPE-IDENTIFIER",   &SendChunkForDistributedRepairOp::stripe_identifier,  long(-1))
+        .Def("Decoding-coefficient",   &SendChunkForDistributedRepairOp::decoding_coefficient,  int(-1))
+        .Def("TEMPORAL-TIME",   &SendChunkForDistributedRepairOp::temporal_time,  int(0))
+        .Def("chunkSize",   &SendChunkForDistributedRepairOp::chunkSize,  int64_t(0))
         ;
     }
-    */
+    
     virtual int HandleDone(int code, void *data);
 
+};
+
+struct StripeRepairRequestInfo
+{
+     long theStripe_identifier; //the stripe being repaired..
+     ReadForPartialDecodeOp* upstreamReadOp;  //the read operation requested FROM this server
+     std::map<int,std::map<kfsChunkId_t, SendChunkForDistributedRepairOp*> > downstreamReadOp; //read operations requested BY this server (according to the list sent by the metaserver)    
+     StripeRepairRequestInfo(long theStripeId):
+              theStripe_identifier(theStripeId),
+              upstreamReadOp(NULL)
+              {}
+    ~StripeRepairRequestInfo()
+     {
+        downstreamReadOp.clear();
+     }
 };
 
 //subrata end

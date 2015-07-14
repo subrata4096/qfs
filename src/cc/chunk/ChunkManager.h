@@ -39,6 +39,7 @@
 #include "kfsio/PrngIsaac64.h"
 #include "common/LinearHash.h"
 #include "common/StdAllocator.h"
+#include "qcdio/qcstutils.h"
 
 #include <vector>
 #include <string>
@@ -119,12 +120,19 @@ public:
     //needs synchornization. will be accessed from multiple threads (may be, not sure yet)     
  
     //             key1=stripeID  key2=temporalOrder, value2=decoding operations to be passed to the peers
-    static std::map<long, std::map<int,std::map<kfsChunkId_t, SendChunkForDistributedRepairOp*> > > partialDecodingOpQueue;   //even if this is a map. this will be treated like a queue. "map" is to ensure that it will remain sorted based on temporal order .. 
+    //static std::map<long, std::map<int,std::map<kfsChunkId_t, SendChunkForDistributedRepairOp*> > > partialDecodingOpQueue;   //even if this is a map. this will be treated like a queue. "map" is to ensure that it will remain sorted based on temporal order .. 
+    static std::map<long, StripeRepairRequestInfo* > partialDecodingOpQueue;   //even if this is a map. this will be treated like a queue. "map" is to ensure that it will remain sorted based on temporal order .. 
+   
+    static QCMutex* mMutex;
     //associated insert routine
     static int insertIntoPartialDecodingOpQueue(long theStripe_identifier, int temporalTime, SendChunkForDistributedRepairOp* theOp);
-    //associated delete routine 
+    //associated delete routines
+    static int deleteFromPartialDecodingOpQueue(long theStripe_identifier); 
     static int deleteFromPartialDecodingOpQueue(long theStripe_identifier, int temporalTime, kfsChunkId_t thechunkId);
+    static void printPartialDecodingOpQueue();
     static int getLowestTemporalTimeInPartialDecodingOpQueue(long theStripe_identifier);
+    static bool getIssuedOperationsDownstream(long theStripe_identifier, std::list<SendChunkForDistributedRepairOp*>& opList);
+    static ReadForPartialDecodeOp* getOperationUpstream(long theStripe_identifier);
     //subrata end
 
     bool SetParameters(const Properties& prop);

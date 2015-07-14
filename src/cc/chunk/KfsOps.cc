@@ -877,6 +877,25 @@ ReadOp::HandleDone(int code, void *data)
             status = numBytesIO;
         }
     }
+    //subrata add
+    //subrata :  speciall processing for partial decode. verify that it is coming from partial decode and only then perform this operations..
+    //************** code only for partial decode start
+     
+    ReadForPartialDecodeOp* readPartialOp = dynamic_cast<ReadForPartialDecodeOp*>(this);
+    if(readPartialOp)
+    {
+       if(status > 0)
+       {
+          KFS_LOG_STREAM_ERROR << "subrata :  ReadOp::HandleDone called for objectType ReadForPartialDecodeOp" <<  KFS_LOG_EOM;
+         
+          readPartialOp->XORFromAllTheIssuedOperation();  //if not all buffers are ready will await...and will awaken by a response from the "peers" then will check again
+       }
+
+    }
+
+    //************** code only for partial decode end
+    //subrata end
+
 
     if (status >= 0) {
         assert(
@@ -923,6 +942,17 @@ ReadOp::HandleDone(int code, void *data)
         KFS_LOG_STREAM_INFO << "closing chunk: " << chunkId << KFS_LOG_EOM;
         gChunkManager.CloseChunk(chunkId);
     }
+
+    //subrata add    
+    if(readPartialOp)
+    { 
+          if(false == readPartialOp->isReadyToReturnForPartialDecoding)
+          {
+             //******* NOTE: not ready to destroy this Op yet. Did not get back the response from peers...
+             return 0;
+          }
+    }
+    //subrata end
 
     gLogger.Submit(this);
     return 0;
@@ -1561,6 +1591,12 @@ DistributedRepairChunkOp::Execute()
     //now queue all this requests. We will gradually remove them from the queue as we start getting responses back with the chunk result..
     int retVal = ChunkManager::insertIntoPartialDecodingOpQueue(this->stripe_identifier, requested_temporalTime, chunkRepairRequestOp);
 
+    //subrata : again for debugging :  want to check BytesConsumable is zero here. After it receive the data from the client it will be filled up
+    //checking can we use this "dataBuf" to send reply back to the original server which requested data from this server ?
+
+    int bytesInBuff = (chunkRepairRequestOp->dataBuf).BytesConsumable();
+    KFS_LOG_STREAM_ERROR << "subrata : SendChunkForDistributedRepairOp stripeId = " << this->stripe_identifier << " issue requested for chunkId=" <<requested_chunkId << " current data in buf="<< bytesInBuff << KFS_LOG_EOM; 
+
     //The response will be handed by RemoteSyncSM::HandleResponse   -- but do not know how to handle that yet..
 
    }
@@ -1601,8 +1637,8 @@ void SendChunkForDistributedRepairOp::Request(ostream &os)
         "Chunk-version: " << chunkVersion    << "\r\n"
         "chunkSize: "     << chunkSize        << "\r\n"
         //"Num-bytes: "     << numBytes        << "\r\n"
-        "STRIPE_IDENTIFIER: "     << stripe_identifier   << "\r\n"
-        "TEMPORAL_TIME: "     << temporal_time   << "\r\n"
+        "STRIPE-IDENTIFIER: "     << stripe_identifier   << "\r\n"
+        "TEMPORAL-TIME: "     << temporal_time   << "\r\n"
         "Decoding-coefficient: "  << decoding_coefficient   << "\r\n"
     ;
 
@@ -1644,8 +1680,21 @@ SendChunkForDistributedRepairOp::HandleDone(int code, void *data)
     //KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone :  ReadOp status="<< theReadOp->statusMsg << " and " << "BytesConsumable=" << numRd <<  KFS_LOG_EOM;
     KFS_LOG_STREAM_ERROR << "subrata :  SendChunkForDistributedRepairOp::HandleDone :  CHUNKSIZE=" << CHUNKSIZE << " and BytesConsumable from own dataBuf(" << &dataBuf <<")="<< numRdBuf<< KFS_LOG_EOM;
    
-    int retVal = ChunkManager::deleteFromPartialDecodingOpQueue(this->stripe_identifier, this->temporal_time, this->chunkId);
-     
+    //int retVal = ChunkManager::deleteFromPartialDecodingOpQueue(this->stripe_identifier, this->temporal_time, this->chunkId);
+
+    //subrata : again for debugging :  want to check BytesConsumable is=CHUNKSIZE here. After it receive the data from the client it will be filled up
+    //checking can we use this "dataBuf" to send reply back to the original server which requested data from this server ?
+     int bytesInBuff = (this->dataBuf).BytesConsumable();
+    KFS_LOG_STREAM_ERROR << "subrata : SendChunkForDistributedRepairOp issue requested for chunkId=" << chunkId << " current data in buf="<< bytesInBuff << KFS_LOG_EOM;
+    if(bytesInBuff)
+    {
+         //notify the upstream ReadOp... so that it can do XOR when everything thing is available and return the final result..
+         ReadForPartialDecodeOp* upstreamReadOp = ChunkManager::getOperationUpstream(this->stripe_identifier);
+         if(upstreamReadOp)
+         {
+               upstreamReadOp->XORFromAllTheIssuedOperation();
+         }
+    } 
     if(clnt) 
     {
        clnt->HandleEvent(EVENT_CMD_DONE, this);
@@ -1656,12 +1705,112 @@ SendChunkForDistributedRepairOp::HandleDone(int code, void *data)
     return 0;
 }
 
+bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
+{
+      //KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation" <<  KFS_LOG_EOM;
+
+      std::list<SendChunkForDistributedRepairOp*> issuedOpList;
+      bool thereAreIssuedOps = ChunkManager::getIssuedOperationsDownstream(this->stripe_identifier, issuedOpList);
+      if(thereAreIssuedOps)
+      {
+           bool allBuffersReady = true;
+           std::list<SendChunkForDistributedRepairOp*> :: iterator issuedOpBegin = issuedOpList.begin();
+           std::list<SendChunkForDistributedRepairOp*> :: iterator issuedOpEnd = issuedOpList.end();
+           for(; issuedOpBegin != issuedOpEnd ;  issuedOpBegin++)
+           {
+               int numBytesConsumable = ((*issuedOpBegin)->dataBuf).BytesConsumable();
+               if(numBytesConsumable <= 0)
+               {
+                   allBuffersReady = false;
+                   break;
+              }
+           }
+            
+           if(false == allBuffersReady)
+           {
+               //not all buffers are ready. That means we did not get back chunk response from the peers. Have to wait. How ? 
+               return false;
+           }
+           else
+           {
+               //we git back all the responses from peers. XOR the responses (for partial decoding) and prepare to return ....
+               //also remember to XOR with my own data which is in this->dataBuf. Multiply with coefficient before XOR
+
+                 
+                   //mark this operation as complete...
+               //later we can drain the op based on this flag..
+               this->isReadyToReturnForPartialDecoding = true; 
+      	       KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation found ALL buffers from multiple issued" <<  KFS_LOG_EOM;
+
+
+              numBytesIO = dataBuf.BytesConsumable();
+              if (numBytesIO <= 0) 
+              {
+                checksum.clear();
+              }
+              else if (! skipVerifyDiskChecksumFlag) 
+              {
+                if (offset % CHECKSUM_BLOCKSIZE != 0) {
+                   checksum = ComputeChecksums(&dataBuf, numBytesIO);
+                } 
+                else 
+                {
+                  const int len = (int)(numBytesIO % CHECKSUM_BLOCKSIZE);
+                  if (len > 0) 
+                  {
+                    checksum.back() = ComputeBlockChecksumAt(
+                        &dataBuf, numBytesIO - len, (size_t)len);
+                  }
+               }
+               assert((size_t)((numBytesIO + CHECKSUM_BLOCKSIZE - 1) / CHECKSUM_BLOCKSIZE) == checksum.size());
+             }
+
+              
+             gLogger.Submit(this);
+             return true;
+
+           }
+
+      }
+      KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation found ALL buffers" <<  KFS_LOG_EOM;
+      this->isReadyToReturnForPartialDecoding = true; 
+      return true; //in case no operation was issued
+}
+
+
 int ReadForPartialDecodeOp::HandleDone(int code, void* data)
 {
+   //subrata :  we will only "complete" (i.e. return results) this request, only if the timestamp (temporal time) at the top of the queue is GREATER than the temporal time of the operation..
    
    KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::HandleDone" << KFS_LOG_EOM;
-    
    ReadOp::HandleDone(code,data);
+   
+   if(true == this->isReadyToReturnForPartialDecoding)
+   {
+       KFS_LOG_STREAM_ERROR << "subrata :  all issued op finished. ReadForPartialDecodeOp::HandleDone : deleting " << this->stripe_identifier << " from the op-Queue map " << KFS_LOG_EOM;
+       
+       ChunkManager::printPartialDecodingOpQueue();
+       if(-1 != ChunkManager::getLowestTemporalTimeInPartialDecodingOpQueue(this->stripe_identifier))
+       {
+         int retVal = ChunkManager::deleteFromPartialDecodingOpQueue(this->stripe_identifier);
+         assert(retVal == 0);  //otherwise something wrong. we could not find this stripe id in the map....
+       }
+   }
+  
+   /*
+   int lowestTemporalTimeInOperationQueue = ChunkManager::getLowestTemporalTimeInPartialDecodingOpQueue(this->stripe_identifier);
+   if(-1 == lowestTemporalTimeInOperationQueue)
+   {
+        this->isReadyToReturnForPartialDecoding = true;
+   }
+   
+   if(this->isReadyToReturnForPartialDecoding)
+   {
+   
+    
+   }
+
+   */
    //For some reason the receiver is getting less data compared to the actual chunk size. We want to check here how much data we are actually sending..
    /*
    IOBuffer* const b = reinterpret_cast<IOBuffer*>(data);
@@ -1670,7 +1819,6 @@ int ReadForPartialDecodeOp::HandleDone(int code, void* data)
        const int numRd = b->BytesConsumable();
        KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::HandleDone :  we are trying to send BytesConsumable=" << numRd <<  KFS_LOG_EOM;
    }
-   */
 
    //ReadOp::HandleDone(code,this);
    if(clnt) {
@@ -1680,6 +1828,7 @@ int ReadForPartialDecodeOp::HandleDone(int code, void* data)
      //KFS_LOG_STREAM_ERROR << "subrata :  No clnt!!  ReadForPartialDecodeOp::HandleDone" << KFS_LOG_EOM;
    }
    
+   */
 
    return 0;
 }
@@ -1691,15 +1840,38 @@ void ReadForPartialDecodeOp::Execute()
 
    bool isChunkStable = gChunkManager.IsChunkStable(this->chunkId);
    KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Execute  chunkId=" << this->chunkId << " isChunkStable=" << isChunkStable << KFS_LOG_EOM;
+   
+  //Go ahead and schedule a disk read for my chunk. The reply will wait for reception of corresponding chunks from other peers and a XOR
+  if(isChunkStable)
+  {
+     ReadOp::Execute();
+  }
 
-
+/*
    //subrata :  we will only execute this if the timestamp (temporal time) at the top of the queue is GREATER than the temporal time of the operation..
    int lowestTemporalTimeInOperationQueue = ChunkManager::getLowestTemporalTimeInPartialDecodingOpQueue(this->stripe_identifier);
 
    if((isChunkStable) && ((-1 == lowestTemporalTimeInOperationQueue) || (this->temporal_time <= lowestTemporalTimeInOperationQueue))) //check if what I was requested for is for a timestamp before what I am supposed to get from others (in my queue)
    {
         KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Execute  executing top of the queue chunkId=" << this->chunkId << KFS_LOG_EOM;
-        ReadOp::Execute();
+
+        //subrata :  First check if we already have this chunk in a buffer or not. Beacuse we may be this is an intermediate decoded chunk..that we got from some one...so never wrote the calculated result to disk
+       
+         //TODO: subrata : we are assuming only one chunk is missing. Otherwise we have to modified the code to make it more generic 
+         //Algo:
+         //    1. Check have I issued an operation for "a missing chunk" for this stripe-id ?
+         //    2. IF NO, then go ahead and read from my own disk... and return directly
+         //    3. IF YES, then I should return from the buffer where I have the calculated result. Does the buffer have the data yet ?
+         //    4. Once all the buffers have data, we will return from the buffer ...
+         std::list<SendChunkForDistributedRepairOp*> issuedOpList ; 
+         bool thereAreOps = ChunkManager::getIssuedOperationsDownstream(this->stripe_identifier, issuedOpList);
+         if(thereAreOps == false)
+         {
+           //Go ahead and schedule a disk read for my chunk. The reply will wait for reception of corresponding chunks from other peers and a XOR
+           ReadOp::Execute();
+         }
+
+
         //int readStatus = gChunkManager.ReadChunk(this);   // If ONLY this is used. It is crashing beacuse some checkSum info was not loaded
         //SubmitOpResponse(this);          
    }
@@ -1709,6 +1881,8 @@ void ReadForPartialDecodeOp::Execute()
         //SubmitOpResponse(this);          
       //wait again in the queue
    }
+
+*/
    return;
 }
 
@@ -1720,9 +1894,13 @@ void ReadForPartialDecodeOp::Request(ostream &os)
 
 void ReadForPartialDecodeOp::Response(ostream &os)
 {
-    KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Response Going to request a chunk from a host for stripe repair " << KFS_LOG_EOM;
-    ReadOp::Response(os);
-    //os.flush();
+    if(this->isReadyToReturnForPartialDecoding)
+    {
+       int bytesInBuff = (this->dataBuf).BytesConsumable();
+       KFS_LOG_STREAM_ERROR << "subrata :  ReadForPartialDecodeOp::Response Going to send back a chunkId="<< this->chunkId << " of size=" << bytesInBuff << KFS_LOG_EOM;
+       ReadOp::Response(os);
+       //os.flush();
+    }
     return;
 }
 

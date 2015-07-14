@@ -2125,6 +2125,7 @@ protected:
     int             mTierCandidatesCount[kKfsSTierCount];
 
     //subrata add
+    ChunkServerPtr GetDestinationServerForRepair(std::map<std::string,bool>& existingHosts);
     ChunkServerPtr CoordinateTheReplicationProcess(CSMap::Entry& c, const ChunkRecoveryInfo& recoveryInfo);
  
    int ChooseRecoverySources(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs);
