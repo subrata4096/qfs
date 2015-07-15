@@ -125,6 +125,7 @@ public:
    
     static QCMutex* mMutex;
     //associated insert routine
+    static int insertUpstreamReaderIntoPartialDecodingOpQueue(long theStripe_identifier, ReadForPartialDecodeOp* theOp);
     static int insertIntoPartialDecodingOpQueue(long theStripe_identifier, int temporalTime, SendChunkForDistributedRepairOp* theOp);
     //associated delete routines
     static int deleteFromPartialDecodingOpQueue(long theStripe_identifier); 

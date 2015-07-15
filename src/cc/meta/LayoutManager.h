@@ -2126,6 +2126,7 @@ protected:
 
     //subrata add
     ChunkServerPtr GetDestinationServerForRepair(std::map<std::string,bool>& existingHosts);
+    void PopulateChunkServerOpListString(std::map<int,PartialDecodingInfo>& opMap, std::map<std::string, chunkId_t>& chunkServerToChunkIdMapForThisStripe, std::string& thisServerKey, std::string& chunkServerOpListStr);
     ChunkServerPtr CoordinateTheReplicationProcess(CSMap::Entry& c, const ChunkRecoveryInfo& recoveryInfo);
  
    int ChooseRecoverySources(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs);

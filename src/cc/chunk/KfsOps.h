@@ -912,6 +912,7 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
       int decoding_coefficient;
       //std::list<PartialRepairOp> opSequenceList;
       std::string theSequenceString;
+      std::string newChunkLocation;
      
       //not sure if these will be needed
       SyncReplicationAccess syncReplicationAccess;
@@ -927,6 +928,7 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
            stripe_identifier = -1;
            decoding_coefficient = -1; 
            theSequenceString = "EMPTY" ;
+           newChunkLocation = "";
            SET_HANDLER(this, &DistributedRepairChunkOp::HandleDone);
         };
 
@@ -952,6 +954,7 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
     static int ParseOperationString(const std::string& operationStr, std::string& temporalTime, std::string& chunkIdStr, std::string& chunkVersion, std::string& chunkSize, std::string& decodeCoefficient, std::string& hostnameAndPort, std::string& hostname, int& port);
 
    virtual int HandleDone(int code, void *data);
+   virtual void Response(ostream &os);
 
 
 };
@@ -1988,7 +1991,7 @@ struct SendChunkForDistributedRepairOp : public ReadOp {
     {
         const int nmv = dataBuf.Move(&iobuf, len);
         
-       KFS_LOG_STREAM_ERROR << "subrata : called SendChunkForDistributedRepairOp::GetResponseContent. Moved=" << nmv << "outof len=" << len << " iobuf="<< &iobuf << " dataBuf=" << &dataBuf << KFS_LOG_EOM;
+       KFS_LOG_STREAM_ERROR << "subrata : called SendChunkForDistributedRepairOp::GetResponseContent. done at = " << microseconds() << " Moved=" << nmv << "outof len=" << len << " iobuf="<< &iobuf << " dataBuf=" << &dataBuf << KFS_LOG_EOM;
        
         if (0 <= len && nmv != len) {
             return false;

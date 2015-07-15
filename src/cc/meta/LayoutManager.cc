@@ -8290,6 +8290,28 @@ ChunkServerPtr LayoutManager::GetDestinationServerForRepair(std::map<std::string
    return (*chunkServerBegin);
 }
 
+void LayoutManager::PopulateChunkServerOpListString(std::map<int,PartialDecodingInfo>& opMap, std::map<std::string, chunkId_t>& chunkServerToChunkIdMapForThisStripe, std::string& thisServerKey,  std::string& chunkServerOpListStr)
+{
+   std::stringstream operationTemporalList;
+   std::map<int,PartialDecodingInfo> :: iterator opStart = opMap.begin();
+   std::map<int,PartialDecodingInfo> :: iterator opEnd = opMap.end();
+   for(; opStart != opEnd; opStart++)
+   {
+       //operationTemporalList << "TIME" << opStart->first << "C" << srcChunkId << "V" << chunk->chunkVersion << "S" << chunk->chunkSize << "D" << opStart->second;
+       std::string relevantSourceServer =  (opStart->second).hosting_server;
+       chunkId_t relevantChunkId = chunkServerToChunkIdMapForThisStripe[relevantSourceServer];
+       CSMap::Entry* const relevantCInfo = mChunkToServerMap.Find(relevantChunkId);
+       const MetaChunkInfo* const relevantChunk = relevantCInfo->GetChunkInfo(); 
+       int relevantDecodeCoeff = (opStart->second).decodingCoeff;
+
+       operationTemporalList << "TIME" << opStart->first << "C" << relevantChunkId << "V" << relevantChunk->chunkVersion << "S" << CHUNKSIZE << "D" << relevantDecodeCoeff << "-" << relevantSourceServer;
+   }
+   
+   chunkServerOpListStr = operationTemporalList.str();
+   KFS_LOG_STREAM_ERROR << "subrata : For " << thisServerKey << " operationTemporalList = " << chunkServerOpListStr << KFS_LOG_EOM;
+
+}
+
 ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, const ChunkRecoveryInfo& recoveryInfo)
 {
        chunkId_t theMissing_chunkId = c.GetChunkId(); //missing chunk
@@ -8428,7 +8450,6 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                   std::string thisServerKey = sourceChunkServer->GetHostPortStr();
                   std::map<std::string, std::map<int,PartialDecodingInfo> > :: iterator opListPos = operationMapForChunkServers.find(thisServerKey);
                   
-                 std::stringstream operationTemporalList;
                   
                   if(opListPos == operationMapForChunkServers.end())
                   {
@@ -8437,34 +8458,30 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                   
                   
                   std::map<int,PartialDecodingInfo> opMap = opListPos->second;
+
+                  std::string chunkServerOpList;
                   //make a string of the temporal list of operations..
-                 std::map<int,PartialDecodingInfo> :: iterator opStart = opMap.begin();
-                 std::map<int,PartialDecodingInfo> :: iterator opEnd = opMap.end();
- 
-                for(; opStart != opEnd; opStart++)
-                {
-                     //operationTemporalList << "TIME" << opStart->first << "C" << srcChunkId << "V" << chunk->chunkVersion << "S" << chunk->chunkSize << "D" << opStart->second;
-                    std::string relevantSourceServer =  (opStart->second).hosting_server;
-                    chunkId_t relevantChunkId = chunkServerToChunkIdMapForThisStripe[relevantSourceServer];
-                    CSMap::Entry* const relevantCInfo = mChunkToServerMap.Find(relevantChunkId);
-                    const MetaChunkInfo* const relevantChunk = relevantCInfo->GetChunkInfo(); 
-                    int relevantDecodeCoeff = (opStart->second).decodingCoeff;
+                  PopulateChunkServerOpListString(opMap, chunkServerToChunkIdMapForThisStripe, thisServerKey, chunkServerOpList);
 
-                    operationTemporalList << "TIME" << opStart->first << "C" << relevantChunkId << "V" << relevantChunk->chunkVersion << "S" << CHUNKSIZE << "D" << relevantDecodeCoeff << "-" << relevantSourceServer;
-                }
-                
-
-                 std::string chunkServerOpList(operationTemporalList.str());
-
-                  KFS_LOG_STREAM_ERROR << "subrata : For " << thisServerKey << " operationTemporalList = " << chunkServerOpList << KFS_LOG_EOM;
-              
-                 
-
-                  sourceChunkServer->DistributeRepairInformation(fid, theMissing_chunkId, stripe_identifier , decodingCoeff, chunkServerOpList ,
-                  sourceChunkServer, recoveryInfo, recovIt);  // the object pointer does not do anything useful. Used for NextSeq()
+                  sourceChunkServer->DistributeRepairInformation(fid, theMissing_chunkId, stripe_identifier , decodingCoeff, chunkServerOpList , sourceChunkServer, recoveryInfo, recovIt);  // the object pointer does not do anything useful. Used for NextSeq()
                }
             
       }
+      //now send decoding information to the final destination server as well ... *** THIS IS IMPORTANT!! 
+      
+      std::string dstServerKey = selectedDstChunkPtr->GetHostPortStr();
+      std::map<std::string, std::map<int,PartialDecodingInfo> > :: iterator opListPos = operationMapForChunkServers.find(dstServerKey);
+      
+      //there must be a operation map for the destination server.... Otherwise how can repair happen ?? 
+      assert(opListPos != operationMapForChunkServers.end());
+      
+      std::map<int,PartialDecodingInfo> opMap = opListPos->second;
+      std::string chunkServerOpList;
+      PopulateChunkServerOpListString(opMap, chunkServerToChunkIdMapForThisStripe, dstServerKey, chunkServerOpList);
+
+      int decodingCoeff = 1;/*decodingCoeff for the repair destination*/
+      selectedDstChunkPtr->DistributeRepairInformation(fid, theMissing_chunkId, stripe_identifier , decodingCoeff , chunkServerOpList ,selectedDstChunkPtr, recoveryInfo, recovIt);  // the object pointer does not do anything useful. Used for NextSeq()
+
 
 
 

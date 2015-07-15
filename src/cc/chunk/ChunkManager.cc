@@ -1206,6 +1206,8 @@ int ChunkManager::insertIntoPartialDecodingOpQueue(long theStripe_identifier, in
         stripeRepairReq->downstreamReadOp[temporalTime] = chunkIdOpMap;
         partialDecodingOpQueue[theStripe_identifier] = stripeRepairReq;
 
+        //KFS_LOG_STREAM_ERROR << " subrata : inserting upstream info " << stripeRepairReq << " and upstreamReader " << theOp << KFS_LOG_EOM;
+
         QCStMutexUnlocker    unlocker(mMutex); //subrata :  unlock
         return 0;
    }
@@ -1245,6 +1247,33 @@ int ChunkManager::insertIntoPartialDecodingOpQueue(long theStripe_identifier, in
    QCStMutexUnlocker  unlocker(mMutex); //subrata :  unlock
    return 1;
 }
+
+//static 
+int ChunkManager::insertUpstreamReaderIntoPartialDecodingOpQueue(long theStripe_identifier, ReadForPartialDecodeOp* theOp)
+{
+   QCStMutexLocker lock(mMutex);  //subrata take lock
+
+   std::map<long, StripeRepairRequestInfo* >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
+   if(stripePos == partialDecodingOpQueue.end())
+   {
+        StripeRepairRequestInfo* stripeRepairReq = new StripeRepairRequestInfo(theStripe_identifier);
+        //stripeRepairReq->theStripe_identifier = theStripe_identifier;
+        stripeRepairReq->upstreamReadOp = theOp;
+
+        partialDecodingOpQueue[theStripe_identifier] = stripeRepairReq;
+
+        KFS_LOG_STREAM_ERROR << " subrata : inserting upstream info " << stripeRepairReq << " and upstreamReader " << theOp << KFS_LOG_EOM;
+
+   }
+   else
+   {
+     KFS_LOG_STREAM_ERROR << " subrata : inserting upstream info " << stripePos->second<< " and upstreamReader " << theOp << KFS_LOG_EOM;
+     stripePos->second->upstreamReadOp = theOp; 
+   }
+
+   QCStMutexUnlocker  unlocker(mMutex); //subrata :  unlock
+   return 0;
+}
 //associated delete routine 
 
 //associated delete routines 
@@ -1253,6 +1282,7 @@ int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier)
 {
     QCStMutexLocker lock(mMutex);  //subrata take lock
 
+    KFS_LOG_STREAM_ERROR <<  "subrata :  Trying to delete " << theStripe_identifier << " from ChunkManager::partialDecodingOpQueue" <<KFS_LOG_EOM;
     std::map<long, StripeRepairRequestInfo* >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
 
    if(stripePos == partialDecodingOpQueue.end())
@@ -1261,8 +1291,9 @@ int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier)
       return -1;
    }
 
-   delete stripePos->second;
    ChunkManager::partialDecodingOpQueue.erase(stripePos);
+   delete stripePos->second;
+   KFS_LOG_STREAM_ERROR <<  "subrata :  DELETED " << theStripe_identifier << " from ChunkManager::partialDecodingOpQueue" <<KFS_LOG_EOM;
 
    QCStMutexUnlocker  unlocker(mMutex); //subrata :  unlock
    return 0;
@@ -1274,9 +1305,11 @@ void ChunkManager::printPartialDecodingOpQueue()
   QCStMutexLocker lock(mMutex);  //subrata take lock
    std::map<long, StripeRepairRequestInfo* >:: iterator stripePosStart = ChunkManager::partialDecodingOpQueue.begin();
    std::map<long, StripeRepairRequestInfo* >:: iterator stripePosEnd = ChunkManager::partialDecodingOpQueue.end();
+  
+   KFS_LOG_STREAM_ERROR << "ChunkManager::printPartialDecodingOpQueue total op size " <<  ChunkManager::partialDecodingOpQueue.size() << KFS_LOG_EOM;
    for(; stripePosStart != stripePosEnd; stripePosStart++)
    {
-        KFS_LOG_STREAM_ERROR << "Stripe id = " << stripePosStart->first << " pointer " << stripePosStart->second << KFS_LOG_EOM;
+        KFS_LOG_STREAM_ERROR << "Stripe id = " << stripePosStart->first << " pointer " << stripePosStart->second << " upstreamPtr = " << stripePosStart->second->upstreamReadOp<< KFS_LOG_EOM;
    }
    QCStMutexUnlocker    unlocker(mMutex); //subrata :  unlock
 }
@@ -1285,6 +1318,7 @@ void ChunkManager::printPartialDecodingOpQueue()
 int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier, int theTemporalTime, kfsChunkId_t thechunkId)
 {
    QCStMutexLocker lock(mMutex);  //subrata lock
+    KFS_LOG_STREAM_ERROR <<  "subrata :  Trying to delete " << theStripe_identifier << " from ChunkManager::partialDecodingOpQueue" <<KFS_LOG_EOM;
    std::map<long, StripeRepairRequestInfo* >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
 
    if(stripePos == partialDecodingOpQueue.end())
@@ -1305,6 +1339,7 @@ int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier, in
      return -1;
    }
    (temporalPos->second).erase(chunkPos);
+   KFS_LOG_STREAM_ERROR <<  "subrata :  DELETED " << theStripe_identifier << " from ChunkManager::partialDecodingOpQueue" <<KFS_LOG_EOM;
    
    if((temporalPos->second).size() == 0)
    {
@@ -1312,8 +1347,8 @@ int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier, in
    }
    if((stripePos->second->downstreamReadOp).size() == 0)
    {
-     delete stripePos->second;
      ChunkManager::partialDecodingOpQueue.erase(stripePos);
+     delete stripePos->second;
    }
 
     QCStMutexUnlocker  unlocker(mMutex); //subrata :  unlock
@@ -1363,6 +1398,11 @@ bool ChunkManager::getIssuedOperationsDownstream(long theStripe_identifier, std:
    }
    std::map<int,std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> > :: iterator beginTemporalTime = (stripePos->second->downstreamReadOp).begin();
    std::map<int,std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> > :: iterator endTemporalTime = (stripePos->second->downstreamReadOp).end();
+   if(beginTemporalTime == endTemporalTime)
+   {
+      QCStMutexUnlocker    unlocker(mMutex); //subrata :  unlock
+      return false;
+   }
    for( ; beginTemporalTime != endTemporalTime ; beginTemporalTime++)
    {
       std::map<kfsChunkId_t,SendChunkForDistributedRepairOp*> requestMap = beginTemporalTime->second;
@@ -1381,6 +1421,8 @@ bool ChunkManager::getIssuedOperationsDownstream(long theStripe_identifier, std:
 //static
 ReadForPartialDecodeOp* ChunkManager::getOperationUpstream(long theStripe_identifier)
 {
+   ChunkManager::printPartialDecodingOpQueue();
+ 
   QCStMutexLocker lock(mMutex);  //subrata take lock
   std::map<long, StripeRepairRequestInfo* >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
 
@@ -1391,6 +1433,8 @@ ReadForPartialDecodeOp* ChunkManager::getOperationUpstream(long theStripe_identi
    }
 
    QCStMutexUnlocker    unlocker(mMutex); //subrata :  unlock
+   KFS_LOG_STREAM_ERROR <<  "subrata :  returning upstreaminfo " << stripePos->second << " and upstreamReader " << stripePos->second->upstreamReadOp <<KFS_LOG_EOM;
+
    return stripePos->second->upstreamReadOp;
 
 }

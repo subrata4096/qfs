@@ -125,7 +125,7 @@ int jerasure_make_custom_decoding_matrix(int k, int m, int w, int *matrix, int *
   return i;
 }
 
-//subrata : This routine will return a matrxi filled with coefficients which should be multiplied and xored with the srcData to recosntruct the erasured data
+//subrata : This routine will return a matrix filled with coefficients which should be multiplied and xored with the srcData to recosntruct the erasured data
 //subrata :  this is targeted for ONLY ONE erasure
 //subrata:  ideally will be called by the meta server
 //subrata:  Performs two different kinds of operation depending on whether a parity was lossed or data was lost

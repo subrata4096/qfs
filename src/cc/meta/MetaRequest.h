@@ -1772,13 +1772,15 @@ struct MetaDistributedRepairChunk : public MetaChunkReplicate {
        int decodeCoeff;
        long stripe_identifier;
        std::string operation_sequence_list;
+       int64_t requestTime;
 
        MetaDistributedRepairChunk(seq_t n, const ChunkServerPtr& s,
             fid_t f, chunkId_t c, const ServerLocation& loc, int& decodeCoeff, long& stripe_id, 
             std::string& opSequence,FileRecoveryInFlightCount::iterator it, const ChunkServerPtr& src):MetaChunkReplicate(n, s, f, c, loc, src, -1,  -1, it),
             decodeCoeff(decodeCoeff),
             stripe_identifier(stripe_id),
-            operation_sequence_list(opSequence) 
+            operation_sequence_list(opSequence),
+            requestTime(0)
    { }
     virtual ~MetaDistributedRepairChunk() { assert(! versChange); }
     virtual void handle();

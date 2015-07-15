@@ -5218,6 +5218,7 @@ ostream& MetaDistributedRepairChunk::ShowSelf(ostream& os) const
 void
 MetaDistributedRepairChunk::handle()
 {
+    KFS_LOG_STREAM_ERROR << " subrata : MetaDistributedRepairChunk::handle was called" << KFS_LOG_EOM;
 }
 
 void
@@ -5320,10 +5321,24 @@ MetaDistributedRepairChunk::request(ostream& os)
     "\r\n";
     os.write(req.data(), req.size());
 
+   requestTime = microseconds(); //current time in microsec . record this. we need to measure how long does the repair take
+
 }
 void
 MetaDistributedRepairChunk::handleReply(const Properties& prop)
 {
+    const string receivedFileId(prop.getValue("File-handle", string()));
+    const long receivedStripeIdentifier(prop.getValue("STRIPE-IDENTIFIER", 0));
+    const chunkId_t receivedChunkId(prop.getValue("Chunk-handle", 0));
+    const seq_t receivedChunkVersion(prop.getValue("Chunk-version", seq_t(0)));
+
+    assert(receivedStripeIdentifier == this->stripe_identifier);
+
+    int64_t now = microseconds(); //current time in microsec . 
+    //lets check how long did it take to complete the repair process..
+    int64_t repairDuration = now - this->requestTime;
+
+    KFS_LOG_STREAM_ERROR << "subrata: MetaDistributedRepairChunk::handleReply for stripe= " << receivedStripeIdentifier << " and it took time = " << repairDuration << KFS_LOG_EOM;
 }
 
 //subrata end
