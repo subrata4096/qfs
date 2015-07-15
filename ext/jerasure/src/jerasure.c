@@ -260,6 +260,7 @@ int jerasure_partial_decode_multiply(int w, int size, int multCoeff, char* sptr,
 int jerasure_matrix_decode(int k, int m, int w, int *matrix, int row_k_ones, int *erasures,
                           char **data_ptrs, char **coding_ptrs, int size)
 {
+  //return 0;  //subrata commenting it out as we want to measure just the overhead of network transfer
 
    // subrata: NOTE: *matrix => This is an array with k*m elements that represents the coding matrix i.e. the last m rows of the distribution matrix.
    //subrata: refer to doc: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.114.6999&rep=rep1&type=pdf
