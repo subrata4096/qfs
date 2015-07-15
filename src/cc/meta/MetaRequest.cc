@@ -5152,7 +5152,7 @@ MetaChunkReplicate::request(ostream& os)
     rs << "\r\n";
     const string req = rs.str();
     //subrata : the replication command is "REPLICATE"
-    KFS_LOG_STREAM_ERROR << "subrata: metaserver is about to send replication instruiction to chunkserver from meta/MetaRequest.cc line 5126" << KFS_LOG_EOM; 
+    KFS_LOG_STREAM_DEBUG << "subrata: metaserver is about to send replication instruiction to chunkserver from meta/MetaRequest.cc line 5126" << KFS_LOG_EOM; 
     os << sReplicateCmdName << " " << Checksum(
         sReplicateCmdName.data(),
         sReplicateCmdName.size(),
@@ -5218,7 +5218,7 @@ ostream& MetaDistributedRepairChunk::ShowSelf(ostream& os) const
 void
 MetaDistributedRepairChunk::handle()
 {
-    KFS_LOG_STREAM_ERROR << " subrata : MetaDistributedRepairChunk::handle was called" << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << " subrata : MetaDistributedRepairChunk::handle was called" << KFS_LOG_EOM;
 }
 
 void
@@ -5312,7 +5312,7 @@ MetaDistributedRepairChunk::request(ostream& os)
     rs << "\r\n";
     const string req = rs.str();
     //subrata : the replication command is "REPLICATEDISTRIBUTE"
-    KFS_LOG_STREAM_ERROR << "subrata: metaserver is distributing the coeffcients and task-list for distributed/partial repair" << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata: metaserver is distributing the coeffcients and task-list for distributed/partial repair" << KFS_LOG_EOM;
     os << sReplicateDistributedCmdName << " " << Checksum(
         sReplicateDistributedCmdName.data(),
         sReplicateDistributedCmdName.size(),
@@ -5338,7 +5338,7 @@ MetaDistributedRepairChunk::handleReply(const Properties& prop)
     //lets check how long did it take to complete the repair process..
     int64_t repairDuration = now - this->requestTime;
 
-    KFS_LOG_STREAM_ERROR << "subrata: MetaDistributedRepairChunk::handleReply for stripe= " << receivedStripeIdentifier << " and it took time = " << repairDuration << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata: MetaDistributedRepairChunk::handleReply for stripe= " << receivedStripeIdentifier << " and it took time = " << repairDuration << KFS_LOG_EOM;
 }
 
 //subrata end

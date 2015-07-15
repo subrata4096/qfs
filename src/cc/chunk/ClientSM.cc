@@ -292,7 +292,7 @@ ClientSM::SendResponseSelf(KfsOp& op)
     //subrata add
     // only for debugging. How much bytes are there in the buffer for sending to the client.. ?? 
     //int bytesContent = iobuf ? iobuf->BytesConsumable() : 0;
-    //KFS_LOG_STREAM_ERROR << "subrata : going to write, bytesContent="<< bytesContent << " len=" << len << "  as a reply to the client " << KFS_LOG_EOM;  
+    //KFS_LOG_STREAM_DEBUG << "subrata : going to write, bytesContent="<< bytesContent << " len=" << len << "  as a reply to the client " << KFS_LOG_EOM;  
     //subrata end
     mNetConnection->Write(iobuf, len);
     gClientManager.RequestDone(timespent, op);

@@ -149,7 +149,7 @@ public:
             inRequestTimeMicroSecs > 0 ? inRequestTimeMicroSecs : 0;
         switch (inOp.op) {
             case CMD_READ:
-                KFS_LOG_STREAM_ERROR << "subrata : I am in ClientManager, the operation was requested by another chunkserver ? " << KFS_LOG_EOM;
+                KFS_LOG_STREAM_DEBUG << "subrata : I am in ClientManager, the operation was requested by another chunkserver ? " << KFS_LOG_EOM;
                 mCounters.mReadRequestCount++;
                 mCounters.mReadRequestTimeMicroSecs += theTime;
                 if (inOp.status >= 0) {

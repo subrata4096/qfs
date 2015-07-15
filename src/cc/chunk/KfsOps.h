@@ -337,7 +337,7 @@ struct KfsOp : public KfsCallbackObj
     virtual bool GetResponseContent(IOBuffer& /* iobuf */, int len)
         {  //bool retVal = (len <= 0);
            //retVal = true; //subrata. This should never be called. I am "incorreectly forcing it to be true. Let's see
-           KFS_LOG_STREAM_ERROR << "subrata : INCORRECTLY called KfsOps::GetResponseContent opName = " << this->theName << " where is the virtual function ?? " << KFS_LOG_EOM;
+           KFS_LOG_STREAM_DEBUG << "subrata : INCORRECTLY called KfsOps::GetResponseContent opName = " << this->theName << " where is the virtual function ?? " << KFS_LOG_EOM;
            return (len <= 0); }
     virtual bool IsChunkReadOp(
         int64_t& /* numBytes */, kfsChunkId_t& /* chunkId */) { return false; }
@@ -1845,7 +1845,7 @@ struct ReadOp : public KfsClientChunkOp {
     virtual bool ParseResponse(const Properties& props, IOBuffer& iobuf);
     virtual bool GetResponseContent(IOBuffer& iobuf, int len)
     {
-        KFS_LOG_STREAM_ERROR << "subrata : called ReadOp::GetResponseContent. This os CORRECT virtual function? " << KFS_LOG_EOM;
+        KFS_LOG_STREAM_DEBUG << "subrata : called ReadOp::GetResponseContent. This os CORRECT virtual function? " << KFS_LOG_EOM;
         const int nmv = dataBuf.Move(&iobuf, len);
         if (0 <= len && nmv != len) {
             return false;
@@ -1895,7 +1895,7 @@ struct ReadForPartialDecodeOp : public ReadOp {
     virtual int HandleDone(int code, void* data);
      virtual bool GetResponseContent(IOBuffer& iobuf, int len)
     {
-        KFS_LOG_STREAM_ERROR << "subrata : called ReadForPartialDecodeOp::GetResponseContent. This os CORRECT virtual function? " << KFS_LOG_EOM;
+        KFS_LOG_STREAM_DEBUG << "subrata : called ReadForPartialDecodeOp::GetResponseContent. This os CORRECT virtual function? " << KFS_LOG_EOM;
         const int nmv = dataBuf.Move(&iobuf, len);
         if (0 <= len && nmv != len) {
             return false;
@@ -1991,7 +1991,7 @@ struct SendChunkForDistributedRepairOp : public ReadOp {
     {
         const int nmv = dataBuf.Move(&iobuf, len);
         
-       KFS_LOG_STREAM_ERROR << "subrata : called SendChunkForDistributedRepairOp::GetResponseContent. done at = " << microseconds() << " Moved=" << nmv << "outof len=" << len << " iobuf="<< &iobuf << " dataBuf=" << &dataBuf << KFS_LOG_EOM;
+       KFS_LOG_STREAM_DEBUG << "subrata : called SendChunkForDistributedRepairOp::GetResponseContent. done at = " << microseconds() << " Moved=" << nmv << "outof len=" << len << " iobuf="<< &iobuf << " dataBuf=" << &dataBuf << KFS_LOG_EOM;
        
         if (0 <= len && nmv != len) {
             return false;
@@ -2233,7 +2233,7 @@ struct GetChunkMetadataOp : public KfsClientChunkOp {
     }
     virtual bool GetResponseContent(IOBuffer& iobuf, int len)
     {
-        KFS_LOG_STREAM_ERROR << "subrata : called GetChunkMetadataOp::GetResponseContent. This os CORRECT virtual function? " << KFS_LOG_EOM;
+        KFS_LOG_STREAM_DEBUG << "subrata : called GetChunkMetadataOp::GetResponseContent. This os CORRECT virtual function? " << KFS_LOG_EOM;
 
         return (len < 0 || dataBuf.Move(&iobuf, len) == len);
     }

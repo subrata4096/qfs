@@ -203,8 +203,11 @@ main(int argc, char **argv)
 
     // Close the file-handle
     gKfsClient->Close(fd);
+    cout << "Now waiting. Do the experiment.." << endl;
+    getchar();
     getchar();
 
+    /*
     // Determine the file-size
     KFS::KfsFileAttr fileAttr;
     gKfsClient->Stat(tempFilename.c_str(), fileAttr);
@@ -300,6 +303,7 @@ main(int argc, char **argv)
     } else {
         cout << "Tests passed!" << endl;
     }
+  */
 }
 
 void generateData(char *buf, int numBytes)

@@ -585,7 +585,7 @@ private:
                 return;
             }
 
-	    KFS_LOG_STREAM_ERROR << "subrata:  StartRead() chunk-id going to read = " << mGetAllocOp.chunkId << " file-offset = " << mGetAllocOp.fileOffset << KFS_LOG_EOM;          
+	    KFS_LOG_STREAM_DEBUG << "subrata:  StartRead() chunk-id going to read = " << mGetAllocOp.chunkId << " file-offset = " << mGetAllocOp.fileOffset << KFS_LOG_EOM;          
 
             mStartReadRunningFlag = true;
             QCStDeleteNotifier theDeleteNotifier(mDeletedFlagPtr);
@@ -831,7 +831,7 @@ private:
         void StartReadSelf()
         {
 	    //subrata add
-            KFS_LOG_STREAM_ERROR << "subrata: StartReadSelf  Ptr this = " << this <<" and the chunk-id going to read from is = " << mGetAllocOp.chunkId << KFS_LOG_EOM;
+            KFS_LOG_STREAM_DEBUG << "subrata: StartReadSelf  Ptr this = " << this <<" and the chunk-id going to read from is = " << mGetAllocOp.chunkId << KFS_LOG_EOM;
         //subrata end
             if (mSleepingFlag) {
                 return;
@@ -896,7 +896,7 @@ private:
              //subrata add
           #include <sys/types.h>
           pid_t thread_id = getpid();
-              KFS_LOG_STREAM_ERROR << "subrata: Read() (line 896) called. process id = " << thread_id << " Ptr this = " << this << " chunkId = " << mGetAllocOp.chunkId << KFS_LOG_EOM;
+              KFS_LOG_STREAM_DEBUG << "subrata: Read() (line 896) called. process id = " << thread_id << " Ptr this = " << this << " chunkId = " << mGetAllocOp.chunkId << KFS_LOG_EOM;
           if(mGetAllocOp.chunkId%2 == 0)  //subrata just testing what will happen
           {
           //      return;

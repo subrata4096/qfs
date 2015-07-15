@@ -12,6 +12,7 @@
 //----------------------------------------------------------------------------
 
 #include "DistributedRepair.h"
+#if 0
 #include "ChunkServer.h"
 #include "utils.h"
 #include "RemoteSyncSM.h"
@@ -1901,3 +1902,5 @@ Replicator::Run(ReplicateChunkOp* op)
 #endif
 
 } // namespace KFS
+
+#endif

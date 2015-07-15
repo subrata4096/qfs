@@ -1232,7 +1232,7 @@ IOBuffer::Write(int fd)
     }
     //subrata add
     //only for debugging
-    //KFS_LOG_STREAM_ERROR << "subrata : total wrote totWr="<< totWr << " outof mByteCount="<< mByteCount << KFS_LOG_EOM;
+    //KFS_LOG_STREAM_DEBUG << "subrata : total wrote totWr="<< totWr << " outof mByteCount="<< mByteCount << KFS_LOG_EOM;
     //subrata end
     DebugVerify(true);
     return totWr;

@@ -798,13 +798,13 @@ private:
     bool ComputeRecovery(                              //subrata : ComputeRecovery is called for each stripe write. We can append a stripe id here
         int* ioPaddSizeWriteFrontTrimPtr = 0)
     {
-         KFS_LOG_STREAM_ERROR << "subrata: ComputeRecovery function in libclient/RSStriper.cc was called " << KFS_LOG_EOM;
+         KFS_LOG_STREAM_DEBUG << "subrata: ComputeRecovery function in libclient/RSStriper.cc was called " << KFS_LOG_EOM;
         if (mRecoveryStripeCount <= 0) {
             for (int i = 0; i < mStripeCount; i++) {
                 mBuffersPtr[i].mWriteLen =
                     mBuffersPtr[i].mBuffer.BytesConsumable();
             }
-         KFS_LOG_STREAM_ERROR << "subrata: in line 786 of ComputeRecovery" << KFS_LOG_EOM;
+         KFS_LOG_STREAM_DEBUG << "subrata: in line 786 of ComputeRecovery" << KFS_LOG_EOM;
             mRecoveryEndPos = mOffset;
             return true;
         }
@@ -822,7 +822,7 @@ private:
         const int theSize       = theTotalSize / mStripeCount;
         QCASSERT(theSize * mStripeCount == theTotalSize);
         Offset thePendingCount = 0;
-        KFS_LOG_STREAM_ERROR << "subrata: in line 804 of ComputeRecovery" << KFS_LOG_EOM;
+        KFS_LOG_STREAM_DEBUG << "subrata: in line 804 of ComputeRecovery" << KFS_LOG_EOM;
         for (int i = mStripeCount;
                 i < mStripeCount + mRecoveryStripeCount;
                 i++) {
@@ -2388,7 +2388,7 @@ private:
                 if (theBuf.IsFailed()) {
                     mMissingIdx[mMissingCnt++] = i;
                     //subrata : start
-                      KFS_LOG_STREAM_ERROR << "subrata: confused! what is in RequestInfo::Set() ? in mMissingIdx ? mMissingIdx[" << mMissingCnt << "] = " << i << KFS_LOG_EOM;
+                      KFS_LOG_STREAM_DEBUG << "subrata: confused! what is in RequestInfo::Set() ? in mMissingIdx ? mMissingIdx[" << mMissingCnt << "] = " << i << KFS_LOG_EOM;
                //subrata: end
                 }
             }
@@ -2474,7 +2474,7 @@ private:
                 if (theSkipStripeIdx != theMissingIdx[i]) {
                     mMissingIdx[mMissingCnt++] = theMissingIdx[i];
             	   //subrata: start
-                      KFS_LOG_STREAM_ERROR << "subrata: what is in RequestInfo:SetIfEmpty() being inserted in mMissingIdx ? is this selecting sources ? mMissingIdx[" << mMissingCnt << "] = theMissingIdx[" << i << "] = " << theMissingIdx[i] << KFS_LOG_EOM;
+                      KFS_LOG_STREAM_DEBUG << "subrata: what is in RequestInfo:SetIfEmpty() being inserted in mMissingIdx ? is this selecting sources ? mMissingIdx[" << mMissingCnt << "] = theMissingIdx[" << i << "] = " << theMissingIdx[i] << KFS_LOG_EOM;
                    //subrata: end 
                 }
             }
@@ -2501,7 +2501,7 @@ private:
             for (i = 0; ; i++) {
 
                //subrata : start
-                      KFS_LOG_STREAM_ERROR << "subrata: and in RequestInfo::Get() ? in mMissingIdx ? mMissingIdx[" << i << "] = " << mMissingIdx[i] << KFS_LOG_EOM;
+                      KFS_LOG_STREAM_DEBUG << "subrata: and in RequestInfo::Get() ? in mMissingIdx ? mMissingIdx[" << i << "] = " << mMissingIdx[i] << KFS_LOG_EOM;
                //subrata: end
                 const int theIdx = i < mMissingCnt ?
                     mMissingIdx[i] : inOuter.mStripeCount;
@@ -2666,7 +2666,7 @@ private:
 	//subrata add
 	#include <sys/types.h>
         pid_t thread_id = getpid();
-	KFS_LOG_STREAM_ERROR << "subrata: Read() call from process id = " <<  thread_id << KFS_LOG_EOM;
+	KFS_LOG_STREAM_DEBUG << "subrata: Read() call from process id = " <<  thread_id << KFS_LOG_EOM;
 	//subrata end
         Request* thePtr;
         while((thePtr = Requests::PopFront(mPendingQueue))) {
@@ -2681,7 +2681,7 @@ private:
         RequestId inRequestId)
     {
 
-	KFS_LOG_STREAM_ERROR << "subrata: RecoverChunk : mRecoverStripeIdx = " << mRecoverStripeIdx << " and mRecoverBlockPos = " << mRecoverBlockPos << " and inChunkOffset = " << inChunkOffset << KFS_LOG_EOM;
+	KFS_LOG_STREAM_DEBUG << "subrata: RecoverChunk : mRecoverStripeIdx = " << mRecoverStripeIdx << " and mRecoverBlockPos = " << mRecoverBlockPos << " and inChunkOffset = " << inChunkOffset << KFS_LOG_EOM;
 
         QCASSERT(
             mRecoverStripeIdx >= 0 &&
@@ -2724,7 +2724,7 @@ private:
  
             const int theStripeToReadIdx =
                 mRecoverStripeIdx < mStripeCount ? mRecoverStripeIdx : 0;
-	    KFS_LOG_STREAM_ERROR << "subrata: am I on line 2685 (else of RecoverChunk) ? theStripeToReadIdx = " << theStripeToReadIdx << KFS_LOG_EOM;
+	    KFS_LOG_STREAM_DEBUG << "subrata: am I on line 2685 (else of RecoverChunk) ? theStripeToReadIdx = " << theStripeToReadIdx << KFS_LOG_EOM;
             Buffer& theBuf = theRequest.GetBuffer(theStripeToReadIdx);
             theBuf.mBuf.mSize = inLength;
             theBuf.mPos       = GetFilePos();

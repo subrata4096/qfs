@@ -1449,8 +1449,8 @@ private:
             mLastOpPtr   = &inOp;
             mOpStartTime = Now();
             //subrata commenting
-            //KFS_LOG_STREAM_DEBUG << mLogPrefix <<
-            KFS_LOG_STREAM_ERROR << mLogPrefix <<
+            KFS_LOG_STREAM_DEBUG << mLogPrefix <<
+            //KFS_LOG_STREAM_ERROR << mLogPrefix <<
                 "+> " << (inServerPtr ? "" : "meta ") << inOp.Show() <<
                 " buffer: " << (void*)inBufferPtr <<
                 "/" << (inBufferPtr ? inBufferPtr->BytesConsumable() : 0) << " subrata:striped_identifier = " << inOp.stripe_identifier <<

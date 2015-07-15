@@ -4670,7 +4670,7 @@ KfsClientImpl::LocateChunk(int fd, chunkOff_t chunkOffset, ChunkAttr& chunk)
    //subrata add
    #include <sys/types.h>
    pid_t thread_id = getpid();
-   KFS_LOG_STREAM_ERROR << "subrata: KfsClientImpl::LocateChunk (line 4651) called. process id = " << thread_id << " offset = " << chunk.chunkOffset << " chunkId = " << chunk.chunkId << KFS_LOG_EOM;
+   KFS_LOG_STREAM_DEBUG << "subrata: KfsClientImpl::LocateChunk (line 4651) called. process id = " << thread_id << " offset = " << chunk.chunkOffset << " chunkId = " << chunk.chunkId << KFS_LOG_EOM;
  //subrata end
 
 

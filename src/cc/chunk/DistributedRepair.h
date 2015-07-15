@@ -8,7 +8,7 @@
 
 #include "common/kfstypes.h"
 #include <stdint.h>
-
+#if 0
 namespace KFS
 {
 
@@ -93,3 +93,4 @@ friend class ClientThreadImpl;
 }
 
 #endif // CHUNKSERVER_DISTRIBUTEDREPAIR_H
+#endif

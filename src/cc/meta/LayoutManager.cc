@@ -239,7 +239,7 @@ LayoutManager::print_stripeIdentifierToChunkIDMap()
         ss << "\n";
     }
     ss << "\n stripeIdentifierToChunkIDMap : end ";
-    KFS_LOG_STREAM_ERROR << ss.str() << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << ss.str() << KFS_LOG_EOM;
 }
 //subrata end
 
@@ -604,7 +604,7 @@ ChunkLeases::ServerDown(
     ARAChunkCache&        arac,
     CSMap&                csmap)
 {
-    KFS_LOG_STREAM_ERROR << "subrata: LayoutManager.c:580 :: ChunkLeases::ServerDown" << KFS_LOG_EOM; 
+    KFS_LOG_STREAM_DEBUG << "subrata: LayoutManager.c:580 :: ChunkLeases::ServerDown" << KFS_LOG_EOM; 
     mWriteLeases.First();
     const WEntry* entry;
     while ((entry = mWriteLeases.Next())) {
@@ -4153,7 +4153,7 @@ LayoutManager::ServerDown(const ChunkServerPtr& server)
     if (! server->IsDown()) {
         server->ForceDown();
     }
-    KFS_LOG_STREAM_ERROR << "subrata: LayoutManager.c:4123 :: ServerDown" << KFS_LOG_EOM; 
+    KFS_LOG_STREAM_DEBUG << "subrata: LayoutManager.c:4123 :: ServerDown" << KFS_LOG_EOM; 
     const bool validFlag = mChunkToServerMap.Validate(server);
     Servers::const_iterator const i = FindServer(server->GetServerLocation());
     if (validFlag != (i != mChunkServers.end() && *i == server)) {
@@ -5926,7 +5926,7 @@ LayoutManager::LeaseRenew(MetaLeaseRenew* req)
 void
 LayoutManager::ChunkCorrupt(MetaChunkCorrupt *r)
 {
-    KFS_LOG_STREAM_ERROR << "subrata: " << "LayoutManager.c:5897 :: " << "ChunkCorrupt" << KFS_LOG_EOM; 
+    KFS_LOG_STREAM_DEBUG << "subrata: " << "LayoutManager.c:5897 :: " << "ChunkCorrupt" << KFS_LOG_EOM; 
     if (! r->isChunkLost) {
         r->server->IncCorruptChunks();
     }
@@ -5943,7 +5943,7 @@ void
 LayoutManager::ChunkCorrupt(chunkId_t chunkId, const ChunkServerPtr& server,
         bool notifyStale)
 {
-    KFS_LOG_STREAM_ERROR << "subrata: " << "LayoutManager.c:5913 :: " << "ChunkCorrupt" << KFS_LOG_EOM; 
+    KFS_LOG_STREAM_DEBUG << "subrata: " << "LayoutManager.c:5913 :: " << "ChunkCorrupt" << KFS_LOG_EOM; 
     CSMap::Entry* const ci = mChunkToServerMap.Find(chunkId);
     if (! ci) {
         return;
@@ -8134,7 +8134,7 @@ void LayoutManager::PrintCoefficientsForDecoding(std::map<int,int>& decodingCoef
    {
         ss << ii->first << " => coeff: " << ii->second << " , " ;
    }
-   KFS_LOG_STREAM_ERROR << ss.str() << KFS_LOG_EOM;
+   KFS_LOG_STREAM_DEBUG << ss.str() << KFS_LOG_EOM;
 }
 
 int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, std::map<int,int>& decodingCoefficient)
@@ -8225,10 +8225,10 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
         operationMapForChunkServers[dstKey] = opMapDst;  //list of operations to be performed by final destination server where the repaired chunk will be hosted
 
 
-        KFS_LOG_STREAM_ERROR << "subrata PopulateDistributedRepairOperationTable : for " << key2 << " ops= " << op21.hosting_server << KFS_LOG_EOM;
-        KFS_LOG_STREAM_ERROR << "subrata PopulateDistributedRepairOperationTable : for " << key4 << " ops= " << op43.hosting_server << ", " << op42.hosting_server << KFS_LOG_EOM;
-        KFS_LOG_STREAM_ERROR << "subrata PopulateDistributedRepairOperationTable : for " << key6 << " ops= " << op65.hosting_server << KFS_LOG_EOM;
-        KFS_LOG_STREAM_ERROR << "subrata PopulateDistributedRepairOperationTable : for " << dstKey << " ops= " << opDst6.hosting_server << ", " << opDst4.hosting_server << KFS_LOG_EOM;
+        KFS_LOG_STREAM_DEBUG << "subrata PopulateDistributedRepairOperationTable : for " << key2 << " ops= " << op21.hosting_server << KFS_LOG_EOM;
+        KFS_LOG_STREAM_DEBUG << "subrata PopulateDistributedRepairOperationTable : for " << key4 << " ops= " << op43.hosting_server << ", " << op42.hosting_server << KFS_LOG_EOM;
+        KFS_LOG_STREAM_DEBUG << "subrata PopulateDistributedRepairOperationTable : for " << key6 << " ops= " << op65.hosting_server << KFS_LOG_EOM;
+        KFS_LOG_STREAM_DEBUG << "subrata PopulateDistributedRepairOperationTable : for " << dstKey << " ops= " << opDst6.hosting_server << ", " << opDst4.hosting_server << KFS_LOG_EOM;
        
         return 0;        
 
@@ -8308,7 +8308,7 @@ void LayoutManager::PopulateChunkServerOpListString(std::map<int,PartialDecoding
    }
    
    chunkServerOpListStr = operationTemporalList.str();
-   KFS_LOG_STREAM_ERROR << "subrata : For " << thisServerKey << " operationTemporalList = " << chunkServerOpListStr << KFS_LOG_EOM;
+   KFS_LOG_STREAM_DEBUG << "subrata : For " << thisServerKey << " operationTemporalList = " << chunkServerOpListStr << KFS_LOG_EOM;
 
 }
 
@@ -8394,7 +8394,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
            
        } 
 
-       KFS_LOG_STREAM_ERROR << ss.str() << KFS_LOG_EOM;
+       KFS_LOG_STREAM_DEBUG << ss.str() << KFS_LOG_EOM;
       
       //populate the operation map that will perform distributed repair...
       // only "some server will get this operation list and they intern will tell others to send rest of the chunks..
@@ -8439,7 +8439,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                   Servers::iterator servIterStart = srvs.begin();
                   ChunkServerPtr sourceChunkServer = *servIterStart;
 
-                  //KFS_LOG_STREAM_ERROR << "subrata : sending decoding info to ChunkServers : " << "loc=" << sourceChunkServer->GetHostPortStr() << " , decodingCoeff=" << decodingCoeff << " , stripe_identifier=" << stripe_identifier << " , chunk_index_in_stripe=" << vecStart->first <<  KFS_LOG_EOM;
+                  //KFS_LOG_STREAM_DEBUG << "subrata : sending decoding info to ChunkServers : " << "loc=" << sourceChunkServer->GetHostPortStr() << " , decodingCoeff=" << decodingCoeff << " , stripe_identifier=" << stripe_identifier << " , chunk_index_in_stripe=" << vecStart->first <<  KFS_LOG_EOM;
                   
 
                   //1. create a key for this server as "hostname:port" combination.
@@ -8499,7 +8499,7 @@ LayoutManager::ReplicateChunk(
     const ChunkRecoveryInfo&       recoveryInfo)
 {
 
-   KFS_LOG_STREAM_ERROR << "subrata: LayoutManager::ReplicateChunk: 8014 " << " extraReplicas = " << extraReplicas << KFS_LOG_EOM;
+   KFS_LOG_STREAM_DEBUG << "subrata: LayoutManager::ReplicateChunk: 8014 " << " extraReplicas = " << extraReplicas << KFS_LOG_EOM;
     if (extraReplicas <= 0) {
         return 0;
     }
@@ -8508,7 +8508,7 @@ LayoutManager::ReplicateChunk(
      ChunkServerPtr myCS = CoordinateTheReplicationProcess(clli, recoveryInfo);
 
    // *********************************
-     KFS_LOG_STREAM_ERROR << "subrata: WE ARE SKIPPING THE OLD REPAIR CODE FOR NOW BY 'RETURNING 0' FROM HERE " << KFS_LOG_EOM;
+     KFS_LOG_STREAM_DEBUG << "subrata: WE ARE SKIPPING THE OLD REPAIR CODE FOR NOW BY 'RETURNING 0' FROM HERE " << KFS_LOG_EOM;
      return 0;
 
    // ********************************
@@ -8606,7 +8606,7 @@ LayoutManager::ReplicateChunk(
     if( servers.size() > 0)
     { 
         myCS = *( servers.begin()) ;
-	KFS_LOG_STREAM_ERROR << "subrata: Am I here ? ***** server candidates are : " << myCS->GetHostPortStr() << KFS_LOG_EOM;
+	KFS_LOG_STREAM_DEBUG << "subrata: Am I here ? ***** server candidates are : " << myCS->GetHostPortStr() << KFS_LOG_EOM;
       //  candidates.push_back(myCS);
     }
     //assert(myCS);
@@ -8651,7 +8651,7 @@ LayoutManager::ReplicateChunk(
         const ChunkServerPtr& c    = *it;
         ChunkServer&          cs   = *c;
         //subrata add print
-	KFS_LOG_STREAM_ERROR << "subrata: ***** server candidates are : " << cs.GetHostPortStr() << KFS_LOG_EOM;
+	KFS_LOG_STREAM_DEBUG << "subrata: ***** server candidates are : " << cs.GetHostPortStr() << KFS_LOG_EOM;
         //subrata end print
         const kfsSTier_t      tier = ti != tiers.end() ? *ti : kKfsSTierUndef;
         // verify that we got good candidates
