@@ -5160,6 +5160,8 @@ MetaChunkReplicate::request(ostream& os)
         req.size()) <<
     "\r\n";
     os.write(req.data(), req.size());
+    
+   requestTime = microseconds(); //current time in microsec . record this. we need to measure how long does the repair take
 }
 
 void
@@ -5176,6 +5178,14 @@ MetaChunkReplicate::handleReply(const Properties& prop)
         }
     }
     fid = prop.getValue("File-handle", fid_t(0));
+
+    int64_t now = microseconds(); //current time in microsec . 
+    //lets check how long did it take to complete the repair process..
+    int64_t repairDuration = now - this->requestTime;
+
+    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " REPAIR took time = " << repairDuration << KFS_LOG_EOM;
+
+
     invalidStripes.clear();
     const int sc = numStripes + numRecoveryStripes;
     if (status == 0 || sc <= 0) {
@@ -5338,7 +5348,7 @@ MetaDistributedRepairChunk::handleReply(const Properties& prop)
     //lets check how long did it take to complete the repair process..
     int64_t repairDuration = now - this->requestTime;
 
-    KFS_LOG_STREAM_DEBUG << "subrata: MetaDistributedRepairChunk::handleReply for stripe= " << receivedStripeIdentifier << " and it took time = " << repairDuration << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << receivedFileId << " REPAIR took time = " << repairDuration << KFS_LOG_EOM;
 }
 
 //subrata end
