@@ -203,6 +203,7 @@ main(int argc, char **argv)
 
     // Close the file-handle
     gKfsClient->Close(fd);
+    printLocationOfTheChunksForAFile(tempFilename, numBytes);
     cout << "Now waiting. Do the experiment.." << endl;
     getchar();
     getchar();
