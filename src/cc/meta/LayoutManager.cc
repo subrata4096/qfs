@@ -8168,7 +8168,8 @@ struct PartialDecodingInfo
 int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,PartialDecodingInfo> >& operationMapForChunkServers, std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer)
 {
          std::map<int,PartialDecodingInfo> opMap2, opMap4, opMap6, opMapDst; //operation maps for source server index 2,4,6 and Dst
-    
+          
+        /*
         std::map<int, std::string> sortedServersByPort; // just for testing...
         for(int i=1; i < 9; i++)
         {
@@ -8184,8 +8185,8 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
         std::string key6 = servIter->second; servIter++;
         std::string key7 = servIter->second; servIter++;
         std::string key8 = servIter->second; 
-
-        /*
+        */
+        
         std::string key1 = eightRemainingSourceServeres[1]->GetHostPortStr();
         std::string key2 = eightRemainingSourceServeres[2]->GetHostPortStr();
         std::string key3 = eightRemainingSourceServeres[3]->GetHostPortStr();
@@ -8194,7 +8195,7 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
         std::string key6 = eightRemainingSourceServeres[6]->GetHostPortStr();
         std::string key7 = eightRemainingSourceServeres[7]->GetHostPortStr();
         std::string key8 = eightRemainingSourceServeres[8]->GetHostPortStr();
-        */
+        
 
         std::string dstKey = destinationServer->GetHostPortStr();
         
