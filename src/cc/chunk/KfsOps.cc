@@ -1788,19 +1788,46 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
  
              //Ideally we should XOR here with all the bytes we have received and with itself! But for now have not implemented the XOR. testing for network with just copying any one of the recevide data = CHUNKSIZE to my own buffer....
 
+
+            //subrata :  comment this section to disable partial decoding START
+             //prepare buffers for partial decoding
+             size_t numberOfChunksToDecode = issuedOpList.size() + 1;   //issuedOpList.size() will get + mine
+             char** tempDecodingBufPtr = new char*[numberOfChunksToDecode]
+             for(int i=0; i < numberOfChunksToDecode ; i ++)
+             {
+                 tempDecodingBufPtr[i] = new char[CHUNKSIZE];
+             }
+            //subrata :  comment this section to disable partial decoding END
+ 
             numBytesIO = dataBuf.BytesConsumable();
             if(numBytesIO <= CHUNKSIZE) //TODO: will fix later
             {
               issuedOpBegin = issuedOpList.begin();
               issuedOpEnd = issuedOpList.end();
+              int i = 0;
               for(; issuedOpBegin != issuedOpEnd ;  issuedOpBegin++)
               {
+                //subrata :  comment this section to disable partial decoding START
+                int numBytesReceived =  ((*issuedOpBegin)->dataBuf).BytesConsumable();
+
+                ((*issuedOpBegin)->dataBuf).CopyOut(tempDecodingBufPtr[i], numBytesReceived);
+                //subrata :  comment this section to disable partial decoding END
+
                 this->dataBuf.Clear();
                 this->dataBuf.Move(&((*issuedOpBegin)->dataBuf));
+
+                i++;
                 //this->dataBuf.Trim(numBytesIO); //Temporary. Just make sure buffer does not become too large
                 //break;               
               }
            }
+           //subrata :  comment this section to disable partial decoding START
+            
+           dataBuf.CopyOut(tempDecodingBufPtr[i], numBytesIO);
+           //now decode 
+           //subrata :  comment this section to disable partial decoding END
+         
+
 
               
                numBytesIO = dataBuf.BytesConsumable();

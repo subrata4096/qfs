@@ -1728,6 +1728,7 @@ struct ReadOp : public KfsClientChunkOp {
     int64_t          chunkVersion;
     int64_t          offset;     /* input */
     size_t           numBytes;   /* input */
+    long stripe_identifier;
     ssize_t          numBytesIO; /* output: # of bytes actually read */
     DiskIoPtr        diskIo;     /* disk connection used for reading data */
     IOBuffer         dataBuf;    /* buffer with the data read */
@@ -1750,6 +1751,7 @@ struct ReadOp : public KfsClientChunkOp {
           chunkVersion(-1),
           offset(0),
           numBytes(0),
+          stripe_identifier(-1),
           numBytesIO(0),
           diskIo(),
           dataBuf(),
@@ -1768,6 +1770,7 @@ struct ReadOp : public KfsClientChunkOp {
           chunkVersion(-1),
           offset(0),
           numBytes(0),
+          stripe_identifier(-1),
           numBytesIO(0),
           diskIo(),
           dataBuf(),
@@ -1786,6 +1789,7 @@ struct ReadOp : public KfsClientChunkOp {
           chunkVersion(w->chunkVersion),
           offset(o),
           numBytes(n),
+          stripe_identifier(-1),
           numBytesIO(0),
           diskIo(),
           dataBuf(),
@@ -1857,6 +1861,7 @@ struct ReadOp : public KfsClientChunkOp {
     template<typename T> static T& ParserDef(T& parser)
     {
         return KfsClientChunkOp::ParserDef(parser)
+        .Def("STRIPE-IDENTIFIER",   &ReadOp::stripe_identifier,  long(-1))
         .Def("Chunk-version",    &ReadOp::chunkVersion, int64_t(-1))
         .Def("Offset",           &ReadOp::offset)
         .Def("Num-bytes",        &ReadOp::numBytes)
@@ -1871,7 +1876,6 @@ struct ReadForPartialDecodeOp : public ReadOp {
     int64_t      chunkSize; // output
     size_t       numBytesIO;
     //kfsChunkId_t chunkid;
-    long stripe_identifier;
     int temporal_time;
     int decoding_coefficient;
     bool isReadyToReturnForPartialDecoding;
@@ -1879,7 +1883,6 @@ struct ReadForPartialDecodeOp : public ReadOp {
     ReadForPartialDecodeOp(kfsSeq_t s = 0)
         : ReadOp(CMD_READ_FOR_PARTIAL_DECODE, s),
           chunkSize(0),
-          stripe_identifier(-1),
           temporal_time(-1),
           decoding_coefficient(-1),
           isReadyToReturnForPartialDecoding(false)
@@ -1908,7 +1911,6 @@ struct ReadForPartialDecodeOp : public ReadOp {
      {
         //return KfsClientChunkOp::ParserDef(parser)
         return ReadOp::ParserDef(parser)
-        .Def("STRIPE-IDENTIFIER",   &ReadForPartialDecodeOp::stripe_identifier,  long(-1))
         .Def("Decoding-coefficient",   &ReadForPartialDecodeOp::decoding_coefficient,  int(-1))
         .Def("TEMPORAL-TIME",   &ReadForPartialDecodeOp::temporal_time,  int(0))
         //.Def("Chunk-handle",   &ReadForPartialDecodeOp::chunkid,  kfsChunkId_t(-1))
