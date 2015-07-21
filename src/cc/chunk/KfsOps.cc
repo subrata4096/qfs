@@ -55,6 +55,9 @@
 #include "qcdio/qcstutils.h"
 #include "qcdio/QCUtils.h"
 
+
+#include "libclient/ECMethod.h"
+
 #include <algorithm>
 #include <iomanip>
 #include <iterator>
@@ -1761,8 +1764,9 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
            for(; issuedOpBegin != issuedOpEnd ;  issuedOpBegin++)
            {
                int numBytesConsumable = ((*issuedOpBegin)->dataBuf).BytesConsumable();
-               uint32_t cksum = ComputeBlockChecksum(&((*issuedOpBegin)->dataBuf), (size_t)numBytesConsumable);
-      	       KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation got from peer " << numBytesConsumable << " bytes and cksum=" << cksum <<  KFS_LOG_EOM;
+               //uint32_t cksum = ComputeBlockChecksum(&((*issuedOpBegin)->dataBuf), (size_t)numBytesConsumable);
+      	       //KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation got from peer " << numBytesConsumable << " bytes and cksum=" << cksum <<  KFS_LOG_EOM;
+      	       KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation got from peer " << numBytesConsumable <<  KFS_LOG_EOM;
                if(numBytesConsumable <= 0)
                {
                    allBuffersReady = false;
@@ -1790,18 +1794,50 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
 
 
             //subrata :  comment this section to disable partial decoding START
+
+             //find out the proper width for galois field calculations
+
+             /*
+             int theW = inStripeCount + inRecoveryStripeCount;
+             if (theW <= (int32_t(1) << 8)) {
+                theW = 8;
+             } else if (theW <= (int32_t(1) << 16)) {
+                theW = 16;
+             } else {
+                theW = 32;
+             }
+             */
+             int theW = 16; //hardcoding for now for 6+3.  ~ (inStripeCount + inRecoveryStripeCount;) see above
              //prepare buffers for partial decoding
              size_t numberOfChunksToDecode = issuedOpList.size() + 1;   //issuedOpList.size() will get + mine
-             char** tempDecodingBufPtr = new char*[numberOfChunksToDecode]
+
+             //allocate temporary source buffers..
+             char** tempDecodingBufPtr = new char*[numberOfChunksToDecode];
+
+             //allocate the buffer which will store the final result of this partial decoding
+             char* outputDecodedPtr = new char[CHUNKSIZE];
+             memset(outputDecodedPtr,0,CHUNKSIZE);
+
              for(int i=0; i < numberOfChunksToDecode ; i ++)
              {
+                 //allocate temporary buffers
                  tempDecodingBufPtr[i] = new char[CHUNKSIZE];
+                 memset(tempDecodingBufPtr[i],0,CHUNKSIZE);
              }
             //subrata :  comment this section to disable partial decoding END
  
             numBytesIO = dataBuf.BytesConsumable();
-            if(numBytesIO <= CHUNKSIZE) //TODO: will fix later
+            if(numBytesIO > 0)
             {
+               
+               dataBuf.CopyOut(tempDecodingBufPtr[0], numBytesIO);  //this one has my data in it. We will multiply it with decode coeff (expect for the final destination)
+               //multiply my own with decoiding coeff. Others have already multiplied there own BEFORE sending to me
+               int multCoeff = this->decoding_coefficient;
+               int theRet = KFS::client::ECMethod::Jerasure_Multiply(theW, numBytesIO, multCoeff, tempDecodingBufPtr[0], outputDecodedPtr);
+            }
+            
+            //if(numBytesIO <= CHUNKSIZE) //TODO: will fix later
+            //{
               issuedOpBegin = issuedOpList.begin();
               issuedOpEnd = issuedOpList.end();
               int i = 0;
@@ -1811,25 +1847,35 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
                 int numBytesReceived =  ((*issuedOpBegin)->dataBuf).BytesConsumable();
 
                 ((*issuedOpBegin)->dataBuf).CopyOut(tempDecodingBufPtr[i], numBytesReceived);
+                //do XOR
+                int theRet = KFS::client::ECMethod::Jerasure_Add(numBytesReceived, tempDecodingBufPtr[i], outputDecodedPtr);
                 //subrata :  comment this section to disable partial decoding END
 
-                this->dataBuf.Clear();
-                this->dataBuf.Move(&((*issuedOpBegin)->dataBuf));
+                //this->dataBuf.Clear();
+                //this->dataBuf.Move(&((*issuedOpBegin)->dataBuf));
 
                 i++;
                 //this->dataBuf.Trim(numBytesIO); //Temporary. Just make sure buffer does not become too large
                 //break;               
               }
-           }
+           //}
            //subrata :  comment this section to disable partial decoding START
             
-           dataBuf.CopyOut(tempDecodingBufPtr[i], numBytesIO);
            //now decode 
+
+
            //subrata :  comment this section to disable partial decoding END
          
 
+               dataBuf.Clear(); //clear what over was there before..
+               dataBuf.CopyIn(outputDecodedPtr,CHUNKSIZE); //now copy in the calculated / partially decoded bytes 
 
-              
+               //now delete the temporary buffers
+               delete [] tempDecodingBufPtr; 
+               delete outputDecodedPtr;
+
+                 
+               //send the calculated result to upstream
                numBytesIO = dataBuf.BytesConsumable();
                uint32_t cksum = ComputeBlockChecksum(&(this->dataBuf), (size_t)numBytesIO);
       	    KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation found ALL buffers from multiple issued, total="<< numBytesIO << " and cksum=" << cksum <<  KFS_LOG_EOM;

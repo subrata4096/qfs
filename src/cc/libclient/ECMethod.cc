@@ -30,6 +30,9 @@
 #include "qcdio/QCMutex.h"
 #include "qcdio/qcstutils.h"
 
+#include "jerasure.h"
+#include "jerasure/reed_sol.h"
+
 namespace KFS
 {
 namespace client
@@ -153,6 +156,33 @@ ECMethod::FindDescription(
     return (theDescription.empty() ?
         string("no description provided") : theDescription);
 }
+
+
+
+//subrata add
+
+/*static*/
+int ECMethod::Jerasure_Multiple_Add(int w, int size, int multCoeff, char* sptr, char* dptr, int xorWithDstAfterMultiply)
+{
+     return  jerasure_partial_decode_multiply_and_add(w, size, multCoeff, sptr, dptr, xorWithDstAfterMultiply);
+}
+
+/*static*/
+int ECMethod::Jerasure_Add(int size, char* sptr, char* dptr)
+{
+    jerasure_partial_decode_add(size, sptr, dptr); //this routine optimized for xor
+    //return jerasure_partial_decode_add(int w, int size, char* sptr, char* dptr);       //this one is NOT optimized
+    return 0;
+}
+
+/*static*/
+int ECMethod::Jerasure_Multiply(int w, int size, int multCoeff, char* sptr, char* dptr)
+{
+   return jerasure_partial_decode_multiply(w, size, multCoeff, sptr, dptr);
+}
+
+//subrata end
+
 
 ECMethod::ECMethod()
 {

@@ -106,6 +106,14 @@ public:
     static string FindDescription(
         int     inMethodType,
         string* outErrMsgPtr);
+
+   //subrata add
+   static int Jerasure_Multiple_Add(int w, int size, int multCoeff, char* sptr, char* dptr, int xorWithDstAfterMultiply);
+   static int Jerasure_Add(int size, char* sptr, char* dptr);
+   static int Jerasure_Multiply(int w, int size, int multCoeff, char* sptr, char* dptr);
+   //subrata end
+
+
 protected:
     ECMethod();
     virtual ~ECMethod();

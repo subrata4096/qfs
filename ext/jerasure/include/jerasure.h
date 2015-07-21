@@ -205,7 +205,8 @@ int jerasure_get_decoding_coefficients_for_survivors_and_particular_erasure(int 
 int jerasure_make_custom_decoding_matrix(int k, int m, int w, int *matrix, int *decoding_matrix, int *dm_ids);
 
 int jerasure_partial_decode_multiply_and_add(int w, int size, int multCoeff, char* sptr, char* dptr, int xorWithDstAfterMultiply);
-int jerasure_partial_decode_add(int w, int size, char* sptr, char* dptr);
+void jerasure_partial_decode_add(int size, char* sptr, char* dptr); //optimized
+//int jerasure_partial_decode_add(int w, int size, char* sptr, char* dptr);
 int jerasure_partial_decode_multiply(int w, int size, int multCoeff, char* sptr, char* dptr);
 
 //subrata end

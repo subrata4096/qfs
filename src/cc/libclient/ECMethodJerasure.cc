@@ -67,6 +67,8 @@ public:
         static QCECMethodJerasure sMethod;
         return &sMethod;
     }
+
+
 protected:
     virtual bool Init(
         int inMethodType)

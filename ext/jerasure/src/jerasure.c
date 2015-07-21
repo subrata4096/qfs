@@ -236,6 +236,11 @@ int jerasure_partial_decode_multiply_and_add(int w, int size, int multCoeff, cha
    
 }
 
+void jerasure_partial_decode_add(int size, char* sptr, char* dptr)
+{
+      galois_region_xor(sptr,dptr,size);
+}
+/*
 int jerasure_partial_decode_add(int w, int size, char* sptr, char* dptr)
 {
   switch (w) {
@@ -245,6 +250,7 @@ int jerasure_partial_decode_add(int w, int size, char* sptr, char* dptr)
         case 32: galois_w32_region_multiply(sptr, 1, size, dptr, 1); break;
       } 
 }
+*/
 int jerasure_partial_decode_multiply(int w, int size, int multCoeff, char* sptr, char* dptr)
 {
   switch (w) {
