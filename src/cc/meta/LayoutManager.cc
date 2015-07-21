@@ -8111,16 +8111,25 @@ void LayoutManager::SetRSJerrasureDecoder()
 
 }
 
-int LayoutManager::GetCoefficientsForDecoding(int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs, std::map<int,int>& decodingCoefficient)  
+int LayoutManager::GetCoefficientsForDecoding(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs, std::map<int,int>& decodingCoefficient)  
 {
     int coefficients[numStripes];
 
+    int64_t totalDecodingTime = 0; //total time it took to do the partial decoding...
+    //measure the time it takes to do partial decoding, in this case calculating matrix in the meta server
+    int64_t tStart = microseconds();
+
     this->JerrasureDecoderPtr->GetDecodingCoefficients(numStripes, numRecoveryStripes, chosenSourceIndexs, missingIndex , coefficients);
+    
+    totalDecodingTime += (microseconds() - tStart);
+    
 
    for(int i = 0 ; i < numStripes ; i++)
    { 
         decodingCoefficient[chosenSourceIndexs[i]] = coefficients[i];
    }   
+   
+   KFS_LOG_STREAM_DEBUG << "subrata :  For stripe_identifier = " << stripe_identifier << "  Partial decoding time on Metaserver node = " << totalDecodingTime << KFS_LOG_EOM;
 
     return 0;
 }
@@ -8146,7 +8155,7 @@ int LayoutManager::GetPartialDecodingInformation(long stripe_identifier, int num
 
         //std::map<int,int> decodingCoefficient;
 
-        this->GetCoefficientsForDecoding(numStripes, numRecoveryStripes, missingIndex,chosenSourceIndexs,decodingCoefficient);
+        this->GetCoefficientsForDecoding(stripe_identifier, numStripes, numRecoveryStripes, missingIndex,chosenSourceIndexs,decodingCoefficient);
         this->PrintCoefficientsForDecoding(decodingCoefficient);
 
         return 0;
@@ -8395,7 +8404,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
            
        } 
 
-       KFS_LOG_STREAM_DEBUG << ss.str() << KFS_LOG_EOM;
+       //KFS_LOG_STREAM_DEBUG << ss.str() << KFS_LOG_EOM;
       
       //populate the operation map that will perform distributed repair...
       // only "some server will get this operation list and they intern will tell others to send rest of the chunks..
@@ -8500,7 +8509,7 @@ LayoutManager::ReplicateChunk(
     const ChunkRecoveryInfo&       recoveryInfo)
 {
 
-   KFS_LOG_STREAM_DEBUG << "subrata: LayoutManager::ReplicateChunk: 8014 " << " extraReplicas = " << extraReplicas << KFS_LOG_EOM;
+   //KFS_LOG_STREAM_DEBUG << "subrata: LayoutManager::ReplicateChunk: 8014 " << " extraReplicas = " << extraReplicas << KFS_LOG_EOM;
     if (extraReplicas <= 0) {
         return 0;
     }

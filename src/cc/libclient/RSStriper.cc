@@ -32,6 +32,7 @@
 
 #include "common/MsgLogger.h"
 #include "common/StBuffer.h"
+#include "common/time.h"
 
 #include "qcdio/qcdebug.h"
 #include "qcdio/QCDLList.h"
@@ -365,6 +366,7 @@ public:
             mEncoderPtr->Release();
         }
     }
+    static int stripe_identifier_static_count;
     virtual int Process(
         IOBuffer& inBuffer,
         Offset&   ioOffset,
@@ -383,10 +385,19 @@ public:
                 return kErrorParameters;
             }
             //subrata add
-            //attach a stripe identifier for this set of chunks
+            //subrata: attach a stripe identifier for this set of chunks
             //long newStripe_identifier = 1;
-            long newStripe_identifier = mOffset; //test
+            //subrata : a stripe_identifier is an integer (for performance) and is a unique number: a combination of [fid + offset]. Actually No, it is current timestamp + a counter
+            std::stringstream ss;
+            int64_t now = microseconds();
+            ss << now << stripe_identifier_static_count;
+            stripe_identifier_static_count++;
+            //long newStripe_identifier = mOffset; //test  //creating a stripe_identifier wghich will be used throughout the code for distributed repair and partial decoding
+            long newStripe_identifier; //creating a stripe_identifier wghich will be used throughout the code for distributed repair and partial decoding
             //subrata end
+            ss >> newStripe_identifier;  //converting string to integer (long) for stripe_identifier
+            assert(false == ss.fail());
+
             Flush(0,newStripe_identifier);
             QCASSERT(mPendingCount == 0);
             mOffset         = ioOffset;
@@ -1022,6 +1033,7 @@ private:
     RSWriteStriper& operator=(
         const RSWriteStriper& inRSWriteStriper);
 };
+int RSWriteStriper::stripe_identifier_static_count = 0;
 
 // Striped files with and without Reed-Solomon recovery reader implementation.
 // The reader is used by chunk server for RS recovery of both "data" and

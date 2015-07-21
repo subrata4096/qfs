@@ -1825,6 +1825,8 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
                  memset(tempDecodingBufPtr[i],0,CHUNKSIZE);
              }
             //subrata :  comment this section to disable partial decoding END
+
+            int64_t totalDecodingTime = 0; //total time it took to do the partial decoding...
  
             numBytesIO = dataBuf.BytesConsumable();
             if(numBytesIO > 0)
@@ -1833,22 +1835,31 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
                dataBuf.CopyOut(tempDecodingBufPtr[0], numBytesIO);  //this one has my data in it. We will multiply it with decode coeff (expect for the final destination)
                //multiply my own with decoiding coeff. Others have already multiplied there own BEFORE sending to me
                int multCoeff = this->decoding_coefficient;
+
+               //also measure the time it takes to do partial decoding
+               int64_t tStart = microseconds(); 
                int theRet = KFS::client::ECMethod::Jerasure_Multiply(theW, numBytesIO, multCoeff, tempDecodingBufPtr[0], outputDecodedPtr);
+               totalDecodingTime += (microseconds() - tStart); 
             }
             
             //if(numBytesIO <= CHUNKSIZE) //TODO: will fix later
             //{
               issuedOpBegin = issuedOpList.begin();
               issuedOpEnd = issuedOpList.end();
-              int i = 0;
+              int i = 1;
               for(; issuedOpBegin != issuedOpEnd ;  issuedOpBegin++)
               {
                 //subrata :  comment this section to disable partial decoding START
                 int numBytesReceived =  ((*issuedOpBegin)->dataBuf).BytesConsumable();
 
                 ((*issuedOpBegin)->dataBuf).CopyOut(tempDecodingBufPtr[i], numBytesReceived);
+                
+                int64_t tStart = microseconds(); //measure how lond did it take
+                
                 //do XOR
                 int theRet = KFS::client::ECMethod::Jerasure_Add(numBytesReceived, tempDecodingBufPtr[i], outputDecodedPtr);
+                
+                totalDecodingTime += (microseconds() - tStart); 
                 //subrata :  comment this section to disable partial decoding END
 
                 //this->dataBuf.Clear();
@@ -1861,8 +1872,7 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
            //}
            //subrata :  comment this section to disable partial decoding START
             
-           //now decode 
-
+            KFS_LOG_STREAM_DEBUG << "subrata :  For stripe_identifier = " << this->stripe_identifier << "  Partial decoding time on This node = " << totalDecodingTime << KFS_LOG_EOM; 
 
            //subrata :  comment this section to disable partial decoding END
          
@@ -1921,6 +1931,55 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
 
            }
 
+      }
+      else
+      {
+           char* tempDecodingBufPtr = new char[CHUNKSIZE];
+           memset(tempDecodingBufPtr,0,CHUNKSIZE);  
+           //allocate the buffer which will store the final result of this partial decoding
+           char* outputDecodedPtr = new char[CHUNKSIZE];
+           memset(outputDecodedPtr,0,CHUNKSIZE);  
+          
+           int64_t totalDecodingTime = 0; //total time it took to do the partial decoding...
+
+            numBytesIO = dataBuf.BytesConsumable();
+            if(numBytesIO > 0)
+            {
+
+               dataBuf.CopyOut(tempDecodingBufPtr, numBytesIO);  //this one has my data in it. We will multiply it with decode coeff (expect for the final destination)
+               //multiply my own with decoiding coeff. Others have already multiplied there own BEFORE sending to me
+               int multCoeff = this->decoding_coefficient;
+
+               /*
+               int theW = inStripeCount + inRecoveryStripeCount;
+               if (theW <= (int32_t(1) << 8)) {
+                  theW = 8;
+               } else if (theW <= (int32_t(1) << 16)) {
+                  theW = 16;
+               } else {
+                  theW = 32;
+               }
+               */
+               int theW = 16; //hardcoding for now for 6+3.  ~ (inStripeCount + inRecoveryStripeCount;) see above
+
+               //also measure the time it takes to do partial decoding
+               int64_t tStart = microseconds();
+               
+               int theRet = KFS::client::ECMethod::Jerasure_Multiply(theW, numBytesIO, multCoeff, tempDecodingBufPtr, outputDecodedPtr);
+               
+               totalDecodingTime += (microseconds() - tStart);
+            
+               KFS_LOG_STREAM_DEBUG << "subrata :  For stripe_identifier = " << this->stripe_identifier << "  Partial decoding time on This node = " << totalDecodingTime << KFS_LOG_EOM; 
+      
+               dataBuf.Clear(); //clear what over was there before..
+               dataBuf.CopyIn(outputDecodedPtr,CHUNKSIZE); //now copy in the calculated / partially decoded bytes 
+            }
+
+            //now delete the temporary buffers
+            delete tempDecodingBufPtr; 
+            delete outputDecodedPtr;
+
+   
       }
       KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation found ALL buffers" <<  KFS_LOG_EOM;
       this->isReadyToReturnForPartialDecoding = true; 

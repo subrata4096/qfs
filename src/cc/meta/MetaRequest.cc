@@ -4928,7 +4928,7 @@ MetaChunkHeartbeat::request(ostream &os)
 {
     //subrata add
     //just for testing. Do not know where to add for printing ..
-    gLayoutManager.print_stripeIdentifierToChunkIDMap();
+    //gLayoutManager.print_stripeIdentifierToChunkIDMap();
 
     //subrata end
     os <<
@@ -5152,7 +5152,7 @@ MetaChunkReplicate::request(ostream& os)
     rs << "\r\n";
     const string req = rs.str();
     //subrata : the replication command is "REPLICATE"
-    KFS_LOG_STREAM_DEBUG << "subrata: metaserver is about to send replication instruiction to chunkserver from meta/MetaRequest.cc line 5126" << KFS_LOG_EOM; 
+    //KFS_LOG_STREAM_DEBUG << "subrata: metaserver is about to send replication instruiction to chunkserver from meta/MetaRequest.cc line 5126" << KFS_LOG_EOM; 
     os << sReplicateCmdName << " " << Checksum(
         sReplicateCmdName.data(),
         sReplicateCmdName.size(),
@@ -5162,6 +5162,7 @@ MetaChunkReplicate::request(ostream& os)
     os.write(req.data(), req.size());
     
    requestTime = microseconds(); //current time in microsec . record this. we need to measure how long does the repair take
+   KFS_LOG_STREAM_DEBUG << "subrata: metaserver is sending REPAIR instruiction to chunkserver at time = " << requestTime << KFS_LOG_EOM; 
 }
 
 void
@@ -5183,7 +5184,7 @@ MetaChunkReplicate::handleReply(const Properties& prop)
     //lets check how long did it take to complete the repair process..
     int64_t repairDuration = now - this->requestTime;
 
-    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " REPAIR took time = " << repairDuration << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " REPAIR took time = " << repairDuration << " request time = " << this->requestTime << " reply time = " << now << KFS_LOG_EOM;
 
 
     invalidStripes.clear();
@@ -5322,7 +5323,7 @@ MetaDistributedRepairChunk::request(ostream& os)
     rs << "\r\n";
     const string req = rs.str();
     //subrata : the replication command is "REPLICATEDISTRIBUTE"
-    KFS_LOG_STREAM_DEBUG << "subrata: metaserver is distributing the coeffcients and task-list for distributed/partial repair" << KFS_LOG_EOM;
+    //KFS_LOG_STREAM_DEBUG << "subrata: metaserver is distributing the coeffcients and task-list for distributed/partial repair" << KFS_LOG_EOM;
     os << sReplicateDistributedCmdName << " " << Checksum(
         sReplicateDistributedCmdName.data(),
         sReplicateDistributedCmdName.size(),
@@ -5332,6 +5333,7 @@ MetaDistributedRepairChunk::request(ostream& os)
     os.write(req.data(), req.size());
 
    requestTime = microseconds(); //current time in microsec . record this. we need to measure how long does the repair take
+   KFS_LOG_STREAM_DEBUG << "subrata: metaserver is sending REPAIR instruiction to chunkserver at time = " << requestTime << KFS_LOG_EOM; 
 
 }
 void
@@ -5348,7 +5350,8 @@ MetaDistributedRepairChunk::handleReply(const Properties& prop)
     //lets check how long did it take to complete the repair process..
     int64_t repairDuration = now - this->requestTime;
 
-    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << receivedFileId << " REPAIR took time = " << repairDuration << KFS_LOG_EOM;
+    //KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << receivedFileId << " REPAIR took time = " << repairDuration << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " REPAIR took time = " << repairDuration << " request time = " << this->requestTime << "reply time = " << now << KFS_LOG_EOM;
 }
 
 //subrata end

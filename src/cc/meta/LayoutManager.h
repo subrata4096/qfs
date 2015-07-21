@@ -2130,7 +2130,7 @@ protected:
     ChunkServerPtr CoordinateTheReplicationProcess(CSMap::Entry& c, const ChunkRecoveryInfo& recoveryInfo);
  
    int ChooseRecoverySources(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, int* chosenSourceIndexs);
-   int GetCoefficientsForDecoding(int inStripeCount, int inRecoveryStripeCount, int missingIndex, int* chosenSourceIndexs, std::map<int,int>& decodingCoefficient);
+   int GetCoefficientsForDecoding(long stripe_identifier, int inStripeCount, int inRecoveryStripeCount, int missingIndex, int* chosenSourceIndexs, std::map<int,int>& decodingCoefficient);
    void PrintCoefficientsForDecoding(std::map<int,int>& decodingCoefficient);
 
    int GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, std::map<int,int>& decodingCoefficient);
