@@ -109,6 +109,24 @@ ChunkLRUCache::ChunkLRUCache(int cacheSizeLimit)
         cacheEntryLimit = cacheSizeLimit;
 }
 
+bool ChunkLRUCache::isChunkInCache(kfsChunkId_t chunkId)
+{
+   std::map<int64_t, ChunkCacheEntry*> :: iterator mapStart = chunkInMemoryCache.begin();
+   std::map<int64_t, ChunkCacheEntry*> :: iterator mapEnd = chunkInMemoryCache.end();
+   bool found = false;
+   for(; mapStart != mapEnd; mapStart++)
+   {
+        if((mapStart->second)->chunkId == chunkId)
+        {
+           found = true;
+           break;
+        }
+   }
+   
+   return found;
+
+}
+
 bool ChunkLRUCache::readChunkFromCache(kfsChunkId_t chunkId, /*output*/ IOBuffer* chunkBuff)
 {
    std::map<int64_t, ChunkCacheEntry*> :: iterator mapStart = chunkInMemoryCache.begin(); 
@@ -2975,6 +2993,17 @@ ChunkManager::ReadChunkMetadata(kfsChunkId_t chunkId, KfsOp* cb)
         return 0;
     }
 
+    //subrata add
+    bool isChunkInLRUCacheBuffer = chunkLRUCache.isChunkInCache(chunkId);
+    if(isChunkInLRUCacheBuffer)
+    {
+       //we do not care about anything else... we are going to read the chunk from the buffer anyway
+       int tmp = 1;
+       cb->HandleChunkMetaReadDone(EVENT_DISK_READ,&tmp); //1 is just to make sure that the pointer is not NULL .. check the code in ReadOp
+       return 0;
+    }
+    //subrata end
+
     if (cih->readChunkMetaOp) {
         // if we have issued a read request for this chunk's metadata,
         // don't submit another one; otherwise, we will simply drive
@@ -3947,6 +3976,22 @@ ChunkManager::ReadChunk(ReadOp* op)
 
     KFS_LOG_STREAM_DEBUG << "subrata: ChunkManager::ReadChunk() : for chunkId = " << op->chunkId << KFS_LOG_EOM;
     //KFS_LOG_STREAM_DEBUG << "subrata: ChunkManager::ReadChunk() : for chunkId = " << op->chunkId << " on process-id = " << procId << KFS_LOG_EOM;
+    //subrata end
+
+
+    //subrata add
+    // Little bit risky change.. we want to avoid reading from disk if the chunk is already available in the LRU cache
+    IOBuffer* cacheBufferForThisChunk = NULL;
+    bool isChunkReadSuccessfully = chunkLRUCache.readChunkFromCache(op->chunkId, cacheBufferForThisChunk);
+    
+    if(isChunkReadSuccessfully && (NULL != cacheBufferForThisChunk))
+    {
+       op->HandleDone(EVENT_DISK_READ, cacheBufferForThisChunk); //what is op?
+       return 0; //every thing was fine. we read the chunk from buffers in the memory...
+    }
+    //else proceed as before...
+
+
     //subrata end
     ChunkInfoHandle* cih = 0;
     if (GetChunkInfoHandle(op->chunkId, &cih) < 0) {

@@ -844,6 +844,15 @@ KfsOp::HandleDone(int code, void *data)
     return 0;
 }
 
+//subrata add
+int KfsOp::HandleChunkMetaReadDone(int code, void *data)  //subrata adding it
+{
+   //should never come here
+   assert(0);
+   gLogger.Submit(this);
+   return 0;
+}
+
 ///
 /// A read op finished.  Set the status and the # of bytes read
 /// alongwith the data and notify the client.

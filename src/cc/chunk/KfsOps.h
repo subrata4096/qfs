@@ -328,6 +328,9 @@ struct KfsOp : public KfsCallbackObj
     // If the execution of an op suspends and then resumes and
     // finishes, this method should be invoked to signify completion.
     virtual int HandleDone(int code, void *data);
+    // handler for reading in the chunk meta-data
+    virtual int HandleChunkMetaReadDone(int code, void *data);  //subrata adding it
+
     virtual int GetContentLength() const { return 0; }
     virtual bool ParseContent(istream& is) { return true; }
     virtual bool ParseResponse(
