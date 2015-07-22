@@ -88,6 +88,75 @@ typedef QCDLList<ChunkInfoHandle, 0> ChunkList;
 typedef QCDLList<ChunkInfoHandle, 1> ChunkDirList;
 typedef ChunkList ChunkLru;
 
+ChunkCacheEntry::ChunkCacheEntry(long stripeId, IOBuffer& chunkContent, size_t buffSize)
+{
+    stripe_identifier = stripeId;
+    chunkCachedBuffer.CopyIn(chunkContent, buffSize);
+}
+
+
+ChunkLRUCache::ChunkLRUCache(int cacheSizeLimit)
+{
+        cacheEntryLimit = cacheSizeLimit;
+}
+
+bool ChunkLRUCache::readChunkFromCache(long stripeId, /*output*/ IOBuffer* chunkBuff)
+{
+   std::map<int64_t, ChunkCacheEntry*> :: iterator mapStart = chunkInMemoryCache.begin(); 
+   std::map<int64_t, ChunkCacheEntry*> :: iterator mapEnd = chunkInMemoryCache.end(); 
+   chunkBuff = NULL;
+   bool found = false;
+   ChunkCacheEntry* theEntry;
+   for(; mapStart != mapEnd; mapStart++)
+   {
+        if((mapStart->second)->stripe_identifier == stripeId)
+	{
+	   chunkBuff = &((mapStart->second)->chunkCachedBuffer);
+	   theEntry = mapStart->second;
+	   found = true;
+	   break;
+	}
+   }
+   if(found)
+   {
+      chunkInMemoryCache.erase(mapStart);  //delete the entry corresponding to old time
+      int64_t now = microseconds(); //get the current stamp and update the entry. basically refresh the timer
+      chunkInMemoryCache[now] = theEntry;  //remember std::map is always sorted by key
+
+     chunksAccessedSinceLastHB[stripeId] = now;
+
+     return true;
+
+   }
+   return false;
+
+}
+
+bool ChunkLRUCache::addChunkToCache(long stripeId, /*input*/ IOBuffer& chunkBuff, size_t buffSize) //will keep latest "N" chunks and remove old chunk buffers
+{
+  if(chunkInMemoryCache.size() >= cacheEntryLimit)
+  {
+  //take the oldest entry and delete it
+   std::map<int64_t, ChunkCacheEntry*> :: iterator mapStart = chunkInMemoryCache.begin(); 
+     
+   delete mapStart->second; //call the descructor of ChunkCacheEntry  
+   chunkInMemoryCache.erase(mapStart);  //delete the entry corresponding to oldest time
+  
+   chunksDeletedSinceLastHB[stripeId] = true; //for incremental tracking to be sent to the meta server
+  }
+
+  ChunkCacheEntry* newCacheEntry = new ChunkCacheEntry(stripeId, chunkBuff, buffSize);
+  int64_t now = microseconds(); //get the current stamp add the entry
+  chunkInMemoryCache[now] = newCacheEntry;
+  chunksAccessedSinceLastHB[stripeId] = now;
+  return true;
+
+
+}
+
+};
+
+
 // Chunk directory state. The present production deployment use one chunk
 // directory per physical disk.
 struct ChunkManager::ChunkDirInfo : public ITimeout
@@ -1187,6 +1256,8 @@ private:
 //std::map<long, std::map<int,std::map<kfsChunkId_t, SendChunkForDistributedRepairOp*> > > ChunkManager::partialDecodingOpQueue;
 std::map<long, StripeRepairRequestInfo* > ChunkManager::partialDecodingOpQueue;
 QCMutex* ChunkManager::mMutex = 0;
+
+ChunkLRUCache ChunkManager::chunkLRUCache;
 
  //associated insert routine
 //static 
@@ -3814,10 +3885,11 @@ int
 ChunkManager::ReadChunk(ReadOp* op)
 {
       //subrata add
-      #include <sys/types.h>
-     pid_t procId = getpid();
+      //#include <sys/types.h>
+     //pid_t procId = getpid();
 
-    KFS_LOG_STREAM_DEBUG << "subrata: ChunkManager::ReadChunk() : for chunkId = " << op->chunkId << " on process-id = " << procId << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata: ChunkManager::ReadChunk() : for chunkId = " << op->chunkId << KFS_LOG_EOM;
+    //KFS_LOG_STREAM_DEBUG << "subrata: ChunkManager::ReadChunk() : for chunkId = " << op->chunkId << " on process-id = " << procId << KFS_LOG_EOM;
     //subrata end
     ChunkInfoHandle* cih = 0;
     if (GetChunkInfoHandle(op->chunkId, &cih) < 0) {

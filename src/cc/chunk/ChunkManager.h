@@ -63,6 +63,30 @@ class ChunkInfoHandle;
 class Properties;
 class BufferManager;
 
+struct ChunkCacheEntry {
+  long stripe_identifier;
+  IOBuffer chunkCachedBuffer;
+  ChunkCacheEntry(long stripeId, IOBuffer& chunkContent, size_t buffSize);
+
+};
+
+struct ChunkLRUCache {
+    
+    int cacheEntryLimit;
+
+    //subrata we will keep a cache of recently served chunk buffers
+    std::map<int64_t, ChunkCacheEntry* > chunkInMemoryCache; //timestamp -> cached objed with stripe id and buffer
+    
+    //following two are for sending "delta" change to the meta server
+    std::map<long, int64_t> chunksAccessedSinceLastHB;
+    std::map<long, bool> chunksDeletedSinceLastHB;
+    
+    ChunkLRUCache(int cacheSizeLimit);
+    bool readChunkFromCache(long stripeId, /*output*/ IOBuffer* chunkBuff);
+    bool addChunkToCache(long stripeId, /*input*/ IOBuffer& chunkBuff, size_t buffSize); //will keep latest "N" chunks and remove old chunk buffers
+
+};
+
 /// The chunk manager writes out chunks as individual files on disk.
 /// The location of the chunk directory is defined by chunkBaseDir.
 /// The file names of chunks is a string representation of the chunk
@@ -122,7 +146,9 @@ public:
     //             key1=stripeID  key2=temporalOrder, value2=decoding operations to be passed to the peers
     //static std::map<long, std::map<int,std::map<kfsChunkId_t, SendChunkForDistributedRepairOp*> > > partialDecodingOpQueue;   //even if this is a map. this will be treated like a queue. "map" is to ensure that it will remain sorted based on temporal order .. 
     static std::map<long, StripeRepairRequestInfo* > partialDecodingOpQueue;   //even if this is a map. this will be treated like a queue. "map" is to ensure that it will remain sorted based on temporal order .. 
-   
+
+    static ChunkLRUCache chunkLRUCache;
+
     static QCMutex* mMutex;
     //associated insert routine
     static int insertUpstreamReaderIntoPartialDecodingOpQueue(long theStripe_identifier, ReadForPartialDecodeOp* theOp);
