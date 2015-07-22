@@ -95,6 +95,34 @@ using libkfsio::globals;
 
 const int64_t kSecs2MicroSecs = 1000 * 1000;
 
+//subrata add
+
+void split_string(const std::string& s, const std::string& delim, std::vector<std::string> &elems) {
+    size_t start = 0;
+    size_t end = s.find(delim);
+    size_t delimLength = delim.length();
+    while (end != std::string::npos)
+    {
+        if(start != end) {
+           elems.push_back(s.substr(start, end - start));
+        }
+        start = end + delimLength;
+        end = s.find(delim, start);
+    }
+    elems.push_back(s.substr(start, end));
+    //return elems;
+}
+
+std::vector<std::string> split(const std::string &s, const std::string& delim) {
+    std::vector<std::string> elems;
+    split_string(s,delim,elems);
+    return elems;
+}
+
+
+//subrata end
+
+
 static inline time_t
 TimeNow()
 {
@@ -241,6 +269,106 @@ LayoutManager::print_stripeIdentifierToChunkIDMap()
     ss << "\n stripeIdentifierToChunkIDMap : end ";
     KFS_LOG_STREAM_DEBUG << ss.str() << KFS_LOG_EOM;
 }
+
+void LayoutManager::updateCacheServerMap(std::string& serverName, kfsChunkId_t& chunkId, int64_t& lastAccessTime, bool isDelete)
+{
+  std::map<chunkId_t, CacheServer> :: iterator chunkPos = chunkIdToCacheServerMap.find(chunkId);
+  if(isDelete)
+  {
+    if(chunkPos == chunkIdToCacheServerMap.end())
+    {
+         assert(0); //for testing. Why will not I find this ?? This is strange!! Check for testing..
+         return; //we have nothing to do .. just return
+    }
+    else
+    {
+       chunkIdToCacheServerMap.erase(chunkPos); //excelant. we have deleted the record.. This chunk is nolonger in cache in any server ..
+       return; 
+    }
+  } 
+  else
+  {
+    if(chunkPos == chunkIdToCacheServerMap.end())
+    {
+         CacheServer cs(serverName);
+         cs.lastAccessedTime = lastAccessTime;
+         chunkIdToCacheServerMap.insert(std::pair<kfsChunkId_t,CacheServer>(chunkId,cs));
+         //chunkIdToCacheServerMap[chunkId] = cs;
+         return; 
+    }
+    else
+    {
+       chunkIdToCacheServerMap.erase(chunkPos); //excelant. we have update. For now, first delete and then add  the record..
+       CacheServer cs(serverName);
+       cs.lastAccessedTime = lastAccessTime;
+       chunkIdToCacheServerMap.insert(std::pair<kfsChunkId_t,CacheServer>(chunkId,cs));
+       //chunkIdToCacheServerMap[chunkId] = cs;
+       return;
+    }
+
+  }
+}
+void LayoutManager::parseAndUpdateCacheServerMap(std::string& serverName, std::string& receivedStringFromHeartBeat)
+{
+   KFS_LOG_STREAM_DEBUG << "Received cache update: " << receivedStringFromHeartBeat << KFS_LOG_EOM;  
+   if("no" == receivedStringFromHeartBeat)
+   {
+      return;
+   }
+   size_t addPosStart = receivedStringFromHeartBeat.find("Adds[");
+   size_t addPosEnd = receivedStringFromHeartBeat.find("Adds[");
+   if(addPosStart != std::string::npos)
+   {
+      std::string accessRecords = receivedStringFromHeartBeat.substr(addPosStart, (addPosEnd - addPosStart));
+
+      std::vector<std::string> stringtokens = split(accessRecords, ",");
+
+      for(int i=0; i < stringtokens.size(); i ++ )
+      {
+        if(stringtokens[i].empty())
+        {
+           continue;
+        }
+        std::vector<std::string> valTokens = split(stringtokens[i], "|");
+        if(valTokens.size() < 2)
+        {
+          continue;
+        }
+        kfsChunkId_t chunkId = strtol(valTokens[0].c_str(), NULL, 10);
+
+        int64_t lastAcessTime; 
+        char c;
+        #include <inttypes.h>
+        int scanned = sscanf(valTokens[1].c_str(), "%" SCNd64 "%c", &lastAcessTime, &c);  //trying to convert string to int64 integer. string is the unix timestamp
+        assert(scanned == lastAcessTime); //otherwise, could not properly convert
+        //long long lastAcessTime = strtoll(valTokens[1].c_str(), NULL, 10);  //compiler error.
+
+        updateCacheServerMap(serverName, chunkId, lastAcessTime , false);
+      }  
+   }
+   
+  size_t delPosStart = receivedStringFromHeartBeat.find("Dels[");
+  if(delPosStart != std::string::npos)
+  {
+     size_t delPosEnd = receivedStringFromHeartBeat.rfind("]");
+
+     std::string deleteRecords = receivedStringFromHeartBeat.substr(delPosStart, (delPosEnd - delPosStart));
+
+     std::vector<std::string> stringtokens = split(deleteRecords, ",");
+     for(int i=0; i < stringtokens.size(); i ++ )
+     {
+        if(stringtokens[i].empty())
+        {
+           continue;
+        }
+        kfsChunkId_t chunkId = strtol(stringtokens[i].c_str(), NULL, 10);
+        int64_t lastAcessTime = -1;
+        updateCacheServerMap(serverName, chunkId, lastAcessTime , true);
+     }  
+     
+  }
+}
+
 //subrata end
 
 
@@ -1308,6 +1436,18 @@ const char* const kClientDefaultNoAuthMetaOpsHosts[] = {
     0 // Sentinel
 };
 const bool kCSAuthenticationUsesServerPskFlag = false;
+
+//subrata add
+CacheServer::CacheServer(std::string& name) : 
+     serverName(name),
+     //serverPort(-1),
+     lastAccessedTime(-1)
+     {}
+CacheServer::CacheServer(const CacheServer& copy) :
+   serverName(copy.serverName),
+   lastAccessedTime(copy.lastAccessedTime)
+   {}
+//subrata end
 
 LayoutManager::LayoutManager() :
     mNumOngoingReplications(0),

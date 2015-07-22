@@ -1687,6 +1687,11 @@ ChunkServer::HandleReply(IOBuffer* iobuf, int msgLen)
             KFS_LOG_EOM;
         }
     }
+    
+    std::string lruCacheUpdate = prop.getValue("ChunkLRUDelta", std::string(""));
+    std::string serverName(this->GetServerName());
+    gLayoutManager.parseAndUpdateCacheServerMap(serverName, lruCacheUpdate);
+   
     op->resume();
     return 0;
 }

@@ -2623,6 +2623,8 @@ HeartbeatOp::Execute()
         gClientManager.IsAuthEnabled() ? 1 : 0);
     HBAppend(os, "Auth-rsync", "authrs", RemoteSyncSM::IsAuthEnabled() ? 1 : 0);
     HBAppend(os, "Auth-meta",  "authms", gMetaServerSM.IsAuthEnabled() ? 1 : 0);
+  
+
     *os[0] << "\r\n";
     os[0]->flush();
     sWOs.Reset();
@@ -4028,6 +4030,14 @@ HeartbeatOp::Response(ostream& os)
     if (sendCurrentKeyFlag) {
         SendCryptoKey(os, currentKeyId, currentKey);
     }
+    //subrata add
+    //Sending delta changes in chunk LRUs
+    std::string deltaInChunkLRU;
+    ChunkManager::generateListOfChangeInChunkLRUCache(deltaInChunkLRU);
+    os << deltaInChunkLRU;
+    os << "\r\n";
+
+    //subrata end
 }
 
 void

@@ -59,6 +59,7 @@
 #include <sstream>
 #include <algorithm>
 #include <string>
+#include <sstream>
 #include <set>
 
 #include <boost/bind.hpp>
@@ -88,19 +89,27 @@ typedef QCDLList<ChunkInfoHandle, 0> ChunkList;
 typedef QCDLList<ChunkInfoHandle, 1> ChunkDirList;
 typedef ChunkList ChunkLru;
 
-ChunkCacheEntry::ChunkCacheEntry(long stripeId, IOBuffer& chunkContent, size_t buffSize)
+ChunkCacheEntry::ChunkCacheEntry(kfsChunkId_t cId, IOBuffer& chunkContent, size_t buffSize)
 {
-    stripe_identifier = stripeId;
-    chunkCachedBuffer.CopyIn(chunkContent, buffSize);
+    chunkId = cId;
+    chunkCachedBuffer = chunkContent.Clone();
+    //chunkCachedBuffer.CopyIn(chunkContent, buffSize);
 }
-
+ChunkCacheEntry::~ChunkCacheEntry()
+{
+   if(chunkCachedBuffer)
+   {
+     delete chunkCachedBuffer;
+   }
+   chunkCachedBuffer = NULL;
+}
 
 ChunkLRUCache::ChunkLRUCache(int cacheSizeLimit)
 {
         cacheEntryLimit = cacheSizeLimit;
 }
 
-bool ChunkLRUCache::readChunkFromCache(long stripeId, /*output*/ IOBuffer* chunkBuff)
+bool ChunkLRUCache::readChunkFromCache(kfsChunkId_t chunkId, /*output*/ IOBuffer* chunkBuff)
 {
    std::map<int64_t, ChunkCacheEntry*> :: iterator mapStart = chunkInMemoryCache.begin(); 
    std::map<int64_t, ChunkCacheEntry*> :: iterator mapEnd = chunkInMemoryCache.end(); 
@@ -109,9 +118,10 @@ bool ChunkLRUCache::readChunkFromCache(long stripeId, /*output*/ IOBuffer* chunk
    ChunkCacheEntry* theEntry;
    for(; mapStart != mapEnd; mapStart++)
    {
-        if((mapStart->second)->stripe_identifier == stripeId)
+        if((mapStart->second)->chunkId == chunkId)
 	{
-	   chunkBuff = &((mapStart->second)->chunkCachedBuffer);
+	   chunkBuff = (mapStart->second)->chunkCachedBuffer;
+	   //chunkBuff = &((mapStart->second)->chunkCachedBuffer);
 	   theEntry = mapStart->second;
 	   found = true;
 	   break;
@@ -123,7 +133,7 @@ bool ChunkLRUCache::readChunkFromCache(long stripeId, /*output*/ IOBuffer* chunk
       int64_t now = microseconds(); //get the current stamp and update the entry. basically refresh the timer
       chunkInMemoryCache[now] = theEntry;  //remember std::map is always sorted by key
 
-     chunksAccessedSinceLastHB[stripeId] = now;
+     chunksAccessedSinceLastHB[chunkId] = now;
 
      return true;
 
@@ -132,7 +142,7 @@ bool ChunkLRUCache::readChunkFromCache(long stripeId, /*output*/ IOBuffer* chunk
 
 }
 
-bool ChunkLRUCache::addChunkToCache(long stripeId, /*input*/ IOBuffer& chunkBuff, size_t buffSize) //will keep latest "N" chunks and remove old chunk buffers
+bool ChunkLRUCache::addChunkToCache(kfsChunkId_t chunkId, /*input*/ IOBuffer& chunkBuff, size_t buffSize) //will keep latest "N" chunks and remove old chunk buffers
 {
   if(chunkInMemoryCache.size() >= cacheEntryLimit)
   {
@@ -142,19 +152,18 @@ bool ChunkLRUCache::addChunkToCache(long stripeId, /*input*/ IOBuffer& chunkBuff
    delete mapStart->second; //call the descructor of ChunkCacheEntry  
    chunkInMemoryCache.erase(mapStart);  //delete the entry corresponding to oldest time
   
-   chunksDeletedSinceLastHB[stripeId] = true; //for incremental tracking to be sent to the meta server
+   chunksDeletedSinceLastHB[chunkId] = true; //for incremental tracking to be sent to the meta server
   }
 
-  ChunkCacheEntry* newCacheEntry = new ChunkCacheEntry(stripeId, chunkBuff, buffSize);
+  ChunkCacheEntry* newCacheEntry = new ChunkCacheEntry(chunkId, chunkBuff, buffSize);
   int64_t now = microseconds(); //get the current stamp add the entry
   chunkInMemoryCache[now] = newCacheEntry;
-  chunksAccessedSinceLastHB[stripeId] = now;
+  chunksAccessedSinceLastHB[chunkId] = now;
   return true;
 
 
 }
 
-};
 
 
 // Chunk directory state. The present production deployment use one chunk
@@ -824,6 +833,54 @@ ChunkManager::ChunkDirs::Allocate(size_t size)
     mSize      = size;
 }
 
+/*static*/
+void ChunkManager::generateListOfChangeInChunkLRUCache(std::string & outputStr)
+{
+    //return;
+     //following two are for sending "delta" change to the meta server
+     
+    std::stringstream ss;
+    outputStr = "ChunkLRUDelta: ";
+    bool hasValue = false;
+    std::map<kfsChunkId_t, int64_t> :: iterator accessStart = ChunkManager::chunkLRUCache.chunksAccessedSinceLastHB.begin();
+    std::map<kfsChunkId_t, int64_t> :: iterator accessEnd = ChunkManager::chunkLRUCache.chunksAccessedSinceLastHB.end();
+    if(accessStart != accessEnd)
+    {
+       hasValue = true;
+       ss << "Adds[";
+       for(; accessStart != accessEnd; accessStart++)
+       {
+            ss << accessStart->first;  //the stripe-id that was recently accessed
+            ss << "|";  //the separator
+            ss << accessStart->second;   //the last acess time for that stripe_identifier   
+            ss << ","; //separator for the new group  stripe_identifier1|acess_time, stripe_identifier2|acess_time,..etc
+       }
+       ss << "]";
+    }
+
+    std::map<kfsChunkId_t, bool> :: iterator deleteStart = ChunkManager::chunkLRUCache.chunksDeletedSinceLastHB.begin();
+    std::map<kfsChunkId_t, bool> :: iterator deleteEnd =  ChunkManager::chunkLRUCache.chunksDeletedSinceLastHB.end();
+    if(deleteStart != deleteEnd)
+    {
+       hasValue = true;
+       ss << "Dels[";
+       for(; deleteStart != deleteEnd; deleteStart++)
+       {
+            ss << deleteStart->first;  //the stripe-id that was delete from LRU due to space constraint
+            ss << ","; //separator for the new group  stripe_identifier1,stripe_identifier2,..etc
+       }
+       ss << "]";
+    }
+    if(hasValue)
+    {
+       outputStr += ss.str();
+    }
+    else
+    {
+       outputStr += "no";
+    }
+}
+
 // OP for reading/writing out the meta-data associated with each chunk.  This
 // is an internally generated op (ops that generate this one are
 // allocate/write/truncate/change-chunk-vers).
@@ -1257,7 +1314,7 @@ private:
 std::map<long, StripeRepairRequestInfo* > ChunkManager::partialDecodingOpQueue;
 QCMutex* ChunkManager::mMutex = 0;
 
-ChunkLRUCache ChunkManager::chunkLRUCache;
+ChunkLRUCache ChunkManager::chunkLRUCache(CHUNK_LRU_CACHE_SIZE);
 
  //associated insert routine
 //static 

@@ -5229,7 +5229,7 @@ ostream& MetaDistributedRepairChunk::ShowSelf(ostream& os) const
 void
 MetaDistributedRepairChunk::handle()
 {
-    KFS_LOG_STREAM_DEBUG << " subrata : MetaDistributedRepairChunk::handle was called" << KFS_LOG_EOM;
+    //KFS_LOG_STREAM_DEBUG << " subrata : MetaDistributedRepairChunk::handle was called" << KFS_LOG_EOM;
 }
 
 void

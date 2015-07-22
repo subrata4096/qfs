@@ -160,7 +160,7 @@ main(int argc, char **argv)
     //if ((fd = gKfsClient->Create(tempFilename.c_str())) < 0) {
     //Please refer to line 308 of src/cc/libclient/KfsClient.h
     //if ((fd = gKfsClient->Create(tempFilename.c_str(),1,false,6,3,64<<10,2)) < 0) {
-    if ((fd = gKfsClient->Create(tempFilename.c_str(),1,false,6,3,64<<10,3)) < 0) {  //subrata: KFS_STRIPED_FILE_TYPE_RS_JERASURE = 3 // force use of Jerasure library
+    if ((fd = gKfsClient->Create(tempFilename.c_str(),1,false,6,3,64<<20,3)) < 0) {  //subrata: KFS_STRIPED_FILE_TYPE_RS_JERASURE = 3 // force use of Jerasure library
         cout << "Create failed: " << KFS::ErrorCodeToStr(fd) << endl;
         exit(-1);
     }

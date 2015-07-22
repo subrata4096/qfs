@@ -144,7 +144,8 @@ static inline bool ValidateStripeParameters(
         KFS_STRIPED_FILE_TYPE_UNKNOWN < inStipedFileType &&
             inStipedFileType < KFS_STRIPED_FILE_TYPE_COUNT &&
         KFS_MIN_STRIPE_SIZE <= inStripeSize &&
-            inStripeSize < KFS_MAX_STRIPE_SIZE &&
+            //inStripeSize < KFS_MAX_STRIPE_SIZE &&
+            inStripeSize <= KFS_MAX_STRIPE_SIZE &&  //subrata . this is to make stripe_size = chunk_size, i.e. 64MB
         0 < inStripeCount &&
         inStripeSize % KFS_STRIPE_ALIGNMENT == 0 &&
         (int64_t)CHUNKSIZE % inStripeSize == 0 &&
@@ -162,6 +163,7 @@ enum AuthenticationType
 };
 const int kMaxAuthenticationContentLength = 64 << 10;
 
+const int CHUNK_LRU_CACHE_SIZE = 10;
 }
 
 #endif // COMMON_KFSTYPES_H

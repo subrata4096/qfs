@@ -94,6 +94,14 @@ using std::min;
 using boost::bind;
 using libkfsio::globalNetManager;
 
+
+//subrata add
+
+void split_string(const std::string& s, const std::string& delim, std::vector<std::string> &elems);
+std::vector<std::string> split(const std::string &s, const std::string& delim);
+
+//subrata end
+
 /// Model for leases: metaserver assigns write leases to chunkservers;
 /// clients/chunkservers can grab read lease on a chunk at any time.
 /// The server will typically renew unexpired leases whenever asked.
@@ -932,6 +940,15 @@ ChunkRecoveryInfo()
     chunkOff_t fileSize;
 };
 
+struct CacheServer
+{
+   std::string serverName;
+   //int serverPort;
+   int64_t lastAccessedTime;
+   CacheServer(std::string& name);
+   CacheServer(const CacheServer& copy);
+};
+
 ///
 /// LayoutManager is responsible for chunk allocation, re-replication, recovery,
 /// and space re-balancing.
@@ -963,6 +980,11 @@ public:
     std::map<long, std::map<int, chunkId_t> > stripeIdentifierToChunkIDMap; // a map which keeps the stripe identifier as the key and list of associated chunks as value     
     void print_stripeIdentifierToChunkIDMap();
     bool serverSet; //for test
+
+    std::map<chunkId_t, CacheServer> chunkIdToCacheServerMap; // a map which keeps track of which chunks are already in cache and in which servers. Entry will be present only for the chunks which are in LRU cache in some server. This map is updated/inserted/deleted based on the information received from the HeartBeat message. Centralized map common for all...so must be used with a lock ?
+     void updateCacheServerMap(std::string& serverName, kfsChunkId_t& chunkId, int64_t& lastAccessTime, bool isDelete);  //this will update the chunkIdToCacheServerMap 
+     void parseAndUpdateCacheServerMap(std::string& serverName, std::string& receivedStringFromHeartBeat);  //this will parse the received string and update the chunkIdToCacheServerMap 
+    
     //subrata end
 
     LayoutManager();

@@ -1404,6 +1404,9 @@ struct MetaHello : public MetaRequest, public ServerLocation {
     int64_t            fileSystemId;
     int64_t            metaFileSystemId;
     bool               noFidsFlag;
+    //subrata add
+    string            chunkLRUDelta;
+    //subrata end
 
     MetaHello()
         : MetaRequest(META_HELLO, false),
@@ -1435,7 +1438,10 @@ struct MetaHello : public MetaRequest, public ServerLocation {
           deleteAllChunksFlag(false),
           fileSystemId(-1),
           metaFileSystemId(-1),
-          noFidsFlag(false)
+          noFidsFlag(false),
+    	  //subrata add
+          chunkLRUDelta("")
+         //subrata end
         {}
     virtual void handle();
     virtual int log(ostream &file) const;
@@ -1472,6 +1478,7 @@ struct MetaHello : public MetaRequest, public ServerLocation {
         .Def("CKey",                         &MetaHello::cryptoKey)
         .Def("FsId",                         &MetaHello::fileSystemId,        int64_t(-1))
         .Def("NoFids",                       &MetaHello::noFidsFlag,                false)
+        .Def("ChunkLRUDelta",                &MetaHello::chunkLRUDelta,      std::string(""))
         ;
     }
 };
