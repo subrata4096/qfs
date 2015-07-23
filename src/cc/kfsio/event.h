@@ -42,6 +42,7 @@ enum EventCode_t {
     EVENT_NET_WROTE,
     EVENT_NET_ERROR,
     EVENT_DISK_READ,
+    EVENT_LRU_CACHE_READ,  //subrata added. Marks when data was sucessfully read from LRU cache    
     EVENT_DISK_WROTE,
     EVENT_DISK_ERROR,
     EVENT_CHECK_OPNE_STATUS_DONE,

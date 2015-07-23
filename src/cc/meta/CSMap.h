@@ -1044,8 +1044,10 @@ private:
         };
         typedef PoolAllocator<
             sizeof(T),         // size_t TItemSize,
-            size_t(8)   << 20, // size_t TMinStorageAlloc,
-            size_t(128) << 20, // size_t TMaxStorageAlloc,
+            //size_t(8)   << 20, // size_t TMinStorageAlloc,
+            size_t(CHUNK_READ_SIZE), // size_t TMinStorageAlloc, //subrata
+            //size_t(128) << 20, // size_t TMaxStorageAlloc,
+            size_t(2*CHUNK_READ_SIZE), // size_t TMaxStorageAlloc, //subrata
             false              // bool   TForceCleanupFlag
         > Alloc;
         const Alloc& GetAllocator() const {

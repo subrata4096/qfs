@@ -89,12 +89,13 @@ typedef QCDLList<ChunkInfoHandle, 0> ChunkList;
 typedef QCDLList<ChunkInfoHandle, 1> ChunkDirList;
 typedef ChunkList ChunkLru;
 
-ChunkCacheEntry::ChunkCacheEntry(kfsChunkId_t cId, IOBuffer& chunkContent, size_t buffSize)
+ChunkCacheEntry::ChunkCacheEntry(kfsChunkId_t cId, IOBuffer* chunkContent, size_t buffSize)
 {
     chunkId = cId;
-    chunkCachedBuffer = chunkContent.Clone();
+    chunkCachedBuffer = chunkContent->Clone();
     //chunkCachedBuffer.CopyIn(chunkContent, buffSize);
 }
+bool ChunkLRUCache::doNotUseCache = false;
 ChunkCacheEntry::~ChunkCacheEntry()
 {
    if(chunkCachedBuffer)
@@ -109,8 +110,32 @@ ChunkLRUCache::ChunkLRUCache(int cacheSizeLimit)
         cacheEntryLimit = cacheSizeLimit;
 }
 
+void ChunkLRUCache::printChunkCacheMap()
+{
+   KFS_LOG_STREAM_ERROR << "subrata : printChunkCacheMap printing .. " << KFS_LOG_EOM;
+   std::map<int64_t, ChunkCacheEntry*> :: iterator mapStart = chunkInMemoryCache.begin();
+   std::map<int64_t, ChunkCacheEntry*> :: iterator mapEnd = chunkInMemoryCache.end();
+   for(; mapStart != mapEnd; mapStart++)
+   {
+       int64_t timestamp = mapStart->first;
+       ChunkCacheEntry* entry = mapStart->second;
+       kfsChunkId_t chunkId = entry->chunkId;
+       int buffSize = 0;
+       if(entry->chunkCachedBuffer)
+       {
+          buffSize = (entry->chunkCachedBuffer)->BytesConsumable();
+       }
+       KFS_LOG_STREAM_ERROR << "subrata : printChunkCacheMap : tStamp = " << timestamp << " chunkId = " << chunkId << " buffSize = " << buffSize << KFS_LOG_EOM;
+   }
+
+}
+
 bool ChunkLRUCache::isChunkInCache(kfsChunkId_t chunkId)
 {
+   if(ChunkLRUCache::doNotUseCache)
+   {
+     return false;
+   }
    std::map<int64_t, ChunkCacheEntry*> :: iterator mapStart = chunkInMemoryCache.begin();
    std::map<int64_t, ChunkCacheEntry*> :: iterator mapEnd = chunkInMemoryCache.end();
    bool found = false;
@@ -127,18 +152,22 @@ bool ChunkLRUCache::isChunkInCache(kfsChunkId_t chunkId)
 
 }
 
-bool ChunkLRUCache::readChunkFromCache(kfsChunkId_t chunkId, /*output*/ IOBuffer* chunkBuff)
+bool ChunkLRUCache::readChunkFromCache(kfsChunkId_t chunkId, /*output*/ IOBuffer** chunkBuff)
 {
+   if(ChunkLRUCache::doNotUseCache)
+   {
+     return false;
+   }
    std::map<int64_t, ChunkCacheEntry*> :: iterator mapStart = chunkInMemoryCache.begin(); 
    std::map<int64_t, ChunkCacheEntry*> :: iterator mapEnd = chunkInMemoryCache.end(); 
-   chunkBuff = NULL;
+   *chunkBuff = NULL;
    bool found = false;
    ChunkCacheEntry* theEntry;
    for(; mapStart != mapEnd; mapStart++)
    {
         if((mapStart->second)->chunkId == chunkId)
 	{
-	   chunkBuff = (mapStart->second)->chunkCachedBuffer;
+	   *chunkBuff = (mapStart->second)->chunkCachedBuffer;
 	   //chunkBuff = &((mapStart->second)->chunkCachedBuffer);
 	   theEntry = mapStart->second;
 	   found = true;
@@ -153,6 +182,7 @@ bool ChunkLRUCache::readChunkFromCache(kfsChunkId_t chunkId, /*output*/ IOBuffer
 
      chunksAccessedSinceLastHB[chunkId] = now;
 
+     KFS_LOG_STREAM_DEBUG << "subrata: ChunkLRUCache::readChunkFromCache data FOUND in LRU Cache : for chunkId = " << chunkId << KFS_LOG_EOM;
      return true;
 
    }
@@ -160,8 +190,16 @@ bool ChunkLRUCache::readChunkFromCache(kfsChunkId_t chunkId, /*output*/ IOBuffer
 
 }
 
-bool ChunkLRUCache::addChunkToCache(kfsChunkId_t chunkId, /*input*/ IOBuffer& chunkBuff, size_t buffSize) //will keep latest "N" chunks and remove old chunk buffers
+bool ChunkLRUCache::addChunkToCache(kfsChunkId_t chunkId, /*input*/ IOBuffer* chunkBuff, size_t buffSize) //will keep latest "N" chunks and remove old chunk buffers
 {
+  if(ChunkLRUCache::doNotUseCache)
+  {
+     return false;
+  }
+  if((NULL == chunkBuff) || (0 == buffSize) || (-1 == chunkId))
+  {
+      return false;
+  }
   if(chunkInMemoryCache.size() >= cacheEntryLimit)
   {
   //take the oldest entry and delete it
@@ -177,6 +215,7 @@ bool ChunkLRUCache::addChunkToCache(kfsChunkId_t chunkId, /*input*/ IOBuffer& ch
   int64_t now = microseconds(); //get the current stamp add the entry
   chunkInMemoryCache[now] = newCacheEntry;
   chunksAccessedSinceLastHB[chunkId] = now;
+  KFS_LOG_STREAM_DEBUG << "subrata: ChunkLRUCache::addChunkToCache data ADDED in LRU Cache : for chunkId = " << chunkId << KFS_LOG_EOM;
   return true;
 
 
@@ -852,10 +891,19 @@ ChunkManager::ChunkDirs::Allocate(size_t size)
 }
 
 /*static*/
+void ChunkManager::clearListOfChangeInChunkLRUCache()
+{
+   ChunkManager::chunkLRUCache.chunksAccessedSinceLastHB.clear();
+   ChunkManager::chunkLRUCache.chunksDeletedSinceLastHB.clear();
+}
+
+/*static*/
 void ChunkManager::generateListOfChangeInChunkLRUCache(std::string & outputStr)
 {
     //return;
      //following two are for sending "delta" change to the meta server
+
+    chunkLRUCache.printChunkCacheMap();
      
     std::stringstream ss;
     outputStr = "ChunkLRUDelta: ";
@@ -2011,7 +2059,8 @@ ChunkManager::ChunkManager()
       mWriteId(GetRandomSeq()), // Seed write id.
       mPendingWrites(),
       mChunkTable(),
-      mMaxIORequestSize(4 << 20),
+      //mMaxIORequestSize(4 << 20),
+      mMaxIORequestSize(CHUNK_READ_SIZE), //subrata
       mNextChunkDirsCheckTime(globalNetManager().Now() - 360000),
       mChunkDirsCheckIntervalSecs(120),
       mNextGetFsSpaceAvailableTime(globalNetManager().Now() - 360000),
@@ -2034,7 +2083,8 @@ ChunkManager::ChunkManager()
       mChunkPlacementPendingReadWeight(0),
       mChunkPlacementPendingWriteWeight(0),
       mMaxPlacementSpaceRatio(0.2),
-      mMinPendingIoThreshold(8 << 20),
+      //mMinPendingIoThreshold(8 << 20),
+      mMinPendingIoThreshold(CHUNK_READ_SIZE), //subrata
       mPlacementMaxWaitingAvgUsecsThreshold(5 * 60 * 1000 * 1000),
       mAllowSparseChunksFlag(true),
       mBufferedIoFlag(false),
@@ -2209,6 +2259,9 @@ ChunkManager::SetDirCheckerIoTimeout()
 bool
 ChunkManager::SetParameters(const Properties& prop)
 {
+    ChunkLRUCache::doNotUseCache = (bool)prop.getValue("chunkServer.doNotUseLRUCacheFlag", ChunkLRUCache::doNotUseCache);
+    //CHUNKSIZE = (int)prop.getValue("chunkServer.CHUNKSIZE", CHUNKSIZE0) != 0;
+
     mInactiveFdsCleanupIntervalSecs = max(0, (int)prop.getValue(
         "chunkServer.inactiveFdsCleanupIntervalSecs",
         (double)mInactiveFdsCleanupIntervalSecs));
@@ -2973,6 +3026,8 @@ ChunkManager::WriteChunkMetadata(
 int
 ChunkManager::ReadChunkMetadata(kfsChunkId_t chunkId, KfsOp* cb)
 {
+    KFS_LOG_STREAM_ERROR << "subrata : ChunkManager::ReadChunkMetadata called " << KFS_LOG_EOM;
+
     ChunkInfoHandle** const ci = mChunkTable.Find(chunkId);
     if (! ci) {
         return -EBADF;
@@ -3034,6 +3089,8 @@ ChunkManager::ReadChunkMetadata(kfsChunkId_t chunkId, KfsOp* cb)
 void
 ChunkManager::ReadChunkMetadataDone(ReadChunkMetaOp* op, IOBuffer* dataBuf)
 {
+    KFS_LOG_STREAM_ERROR << "subrata : ChunkManager::ReadChunkMetadataDone called " << KFS_LOG_EOM;
+
     ChunkInfoHandle** const ci = mChunkTable.Find(op->chunkId);
     if (! ci) {
         if (op->status == 0) {
@@ -3982,11 +4039,12 @@ ChunkManager::ReadChunk(ReadOp* op)
     //subrata add
     // Little bit risky change.. we want to avoid reading from disk if the chunk is already available in the LRU cache
     IOBuffer* cacheBufferForThisChunk = NULL;
-    bool isChunkReadSuccessfully = chunkLRUCache.readChunkFromCache(op->chunkId, cacheBufferForThisChunk);
+    bool isChunkReadSuccessfully = chunkLRUCache.readChunkFromCache(op->chunkId, &cacheBufferForThisChunk);
     
     if(isChunkReadSuccessfully && (NULL != cacheBufferForThisChunk))
     {
-       op->HandleDone(EVENT_DISK_READ, cacheBufferForThisChunk); //what is op?
+       KFS_LOG_STREAM_DEBUG << "subrata: ChunkManager::ReadChunk() Found in LRU Cache : for chunkId = " << op->chunkId << KFS_LOG_EOM;
+       op->HandleDone(EVENT_LRU_CACHE_READ, cacheBufferForThisChunk); //op is supposed to be ReadOp. "EVENT_LRU_CACHE_READ" means data was succesfully read from the cache?
        return 0; //every thing was fine. we read the chunk from buffers in the memory...
     }
     //else proceed as before...
@@ -4250,6 +4308,8 @@ bool
 ChunkManager::ReadChunkDone(ReadOp* op)
 {
     ChunkInfoHandle* cih = 0;
+
+    KFS_LOG_STREAM_ERROR << "subrata : ChunkManager::ReadChunkDone called " << KFS_LOG_EOM;
 
     bool staleRead = false;
     if ((GetChunkInfoHandle(op->chunkId, &cih) < 0) ||

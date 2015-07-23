@@ -1523,8 +1523,10 @@ KfsClientImpl::KfsClientImpl(
       mTmpCurPath(),
       mTmpDirName(),
       mSlash("/"),
-      mDefaultIoBufferSize(min(CHUNKSIZE, size_t(1) << 20)),
-      mDefaultReadAheadSize(min(mDefaultIoBufferSize, size_t(1) << 20)),
+      //mDefaultIoBufferSize(min(CHUNKSIZE, size_t(1) << 20)),
+      mDefaultIoBufferSize(min(CHUNKSIZE, CHUNK_READ_SIZE)), //subrata
+      //mDefaultReadAheadSize(min(mDefaultIoBufferSize, size_t(1) << 20)),
+      mDefaultReadAheadSize(min(mDefaultIoBufferSize, CHUNK_READ_SIZE)), //subrata
       mFailShortReadsFlag(true),
       mFileInstance(0),
       mProtocolWorker(0),
@@ -1562,7 +1564,8 @@ KfsClientImpl::KfsClientImpl(
       mNameBuf(new char[mNameBufSize]),
       mAuthCtx(),
       mProtocolWorkerAuthCtx(),
-      mTargetDiskIoSize(1 << 20),
+      //mTargetDiskIoSize(1 << 20),
+      mTargetDiskIoSize(CHUNK_READ_SIZE), //subrata
       mConfig(),
       mMetaServer(metaServer)
 {
@@ -1578,7 +1581,8 @@ KfsClientImpl::KfsClientImpl(
     mTmpPath.reserve(32);
     mTmpAbsPathStr.reserve(MAX_PATH_NAME_LENGTH);
     mTmpBuffer[kTmpBufferSize] = 0;
-    mChunkServer.SetMaxContentLength(64 << 20);
+    //mChunkServer.SetMaxContentLength(64 << 20);
+    mChunkServer.SetMaxContentLength(CHUNKSIZE); //subrata
     mChunkServer.SetAuthContext(&mAuthCtx);
 }
 
@@ -3225,6 +3229,9 @@ KfsClientImpl::CreateSelf(const char *pathname, int numReplicas, bool exclusive,
     int numStripes, int numRecoveryStripes, int stripeSize, int stripedType,
     bool forceTypeFlag, kfsMode_t mode, kfsSTier_t minSTier, kfsSTier_t maxSTier)
 {
+    stripeSize = CHUNKSIZE;
+    KFS_LOG_STREAM_ERROR << "*** subrata : Ignoring given stripeSize => setting stripeSize = CHUNKSIZE" << CHUNKSIZE << KFS_LOG_EOM; 
+    
     if (! pathname || ! *pathname) {
         return -EINVAL;
     }
@@ -3821,6 +3828,9 @@ KfsClientImpl::OpenSelf(const char *pathname, int openMode, int numReplicas,
     kfsSTier_t minSTier, kfsSTier_t maxSTier,
     bool cacheAttributesFlag, kfsMode_t mode, string* path)
 {
+    stripeSize = CHUNKSIZE;
+    KFS_LOG_STREAM_ERROR << "*** subrata : Ignoring given stripeSize => setting stripeSize = CHUNKSIZE" << CHUNKSIZE << KFS_LOG_EOM; 
+    
     if ((openMode & O_TRUNC) != 0 &&
             (openMode & (O_RDWR | O_WRONLY | O_APPEND)) == 0) {
         return -EINVAL;
@@ -4508,7 +4518,8 @@ KfsClientImpl::StartProtocolWorker()
     // Make content length limit large enough to ensure backward compatibility
     // with the previous versions of the meta server that don't support
     // partial readdir and getalloc.
-    params.mMaxMetaServerContentLength = 512 << 20;
+    //params.mMaxMetaServerContentLength = 512 << 20;
+    params.mMaxMetaServerContentLength = 8*CHUNKSIZE; //subrata
     const int kChecksumBlockSize = (int)CHECKSUM_BLOCKSIZE;
     const int maxWriteSize       = mConfig.getValue(
         "client.maxWriteSize", -1);
@@ -7002,7 +7013,8 @@ KfsClientImpl::GetChunkFromReplica(
     op.access = sizeOp.access;
     while (nread < sizeOp.size) {
         op.seq           = 0;
-        op.numBytes      = min(size_t(1) << 20, (size_t)(sizeOp.size - nread));
+        //op.numBytes      = min(size_t(1) << 20, (size_t)(sizeOp.size - nread));
+        op.numBytes      = min(size_t(CHUNK_READ_SIZE), (size_t)(sizeOp.size - nread)); //subrata
         op.offset        = nread;
         op.contentLength = 0;
         DoChunkServerOp(loc, op);

@@ -872,21 +872,37 @@ ReadOp::HandleDone(int code, void *data)
         if (status != -ETIMEDOUT) {
             gChunkManager.ChunkIOFailed(chunkId, status, diskIo.get());
         }
-    } else if (code == EVENT_DISK_READ) {
+    } else if ((code == EVENT_DISK_READ) || (code == EVENT_LRU_CACHE_READ)) {  //subrata modify
         assert(data);
         IOBuffer* const b = reinterpret_cast<IOBuffer*>(data);
         // Order matters...when we append b, we take the data from b
         // and put it into our buffer.
         dataBuf.Move(b);
-        // verify checksum
-        if (! gChunkManager.ReadChunkDone(this)) {
-            return 0; // Retry.
-        }
         numBytesIO = dataBuf.BytesConsumable();
+        
+        if(code == EVENT_LRU_CACHE_READ)   //subrata add :  this means that we successfully read this buffer from LRU cache and not from the disk..
+        {
+           status = numBytesIO;
+        } 
+        else
+        {
+          //subrata: else:  means whatever was the reason, we could not read the data from in memory LRU cache...
+
+          // verify checksum
+          if (! gChunkManager.ReadChunkDone(this)) {
+             return 0; // Retry.
+          }
+        }
         KFS_LOG_STREAM_DEBUG << "subrata :  ReadOp::HandleDone :  we are trying to send BytesConsumable=" << numBytesIO <<  KFS_LOG_EOM;
         if (status == 0) {
             // checksum verified
             status = numBytesIO;
+        }
+
+
+        if(code == EVENT_DISK_READ) //subrata : that is normal disk read and NOT LRU cache read.
+        {
+             gChunkManager.chunkLRUCache.addChunkToCache(chunkId, &dataBuf , numBytesIO); //do not worry dataBuf will be cloned inside..          
         }
     }
     //subrata add
@@ -909,17 +925,22 @@ ReadOp::HandleDone(int code, void *data)
     //************** code only for partial decode end
     //subrata end
 
+    //subrata : later we can even cache check sums ...
 
     if (status >= 0) {
-        assert(
+        assert(((code == EVENT_LRU_CACHE_READ) || (                          //subrata :  the idea is to skip the check sum assert calculation, if we read the data from Cache
             numBytesIO >= 0 && (numBytesIO == 0 ||
             (size_t)((offset + numBytesIO - 1) / CHECKSUM_BLOCKSIZE + 1 -
-                offset / CHECKSUM_BLOCKSIZE) == checksum.size())
+                offset / CHECKSUM_BLOCKSIZE) == checksum.size())))
         );
         if (numBytesIO <= 0) {
             checksum.clear();
         } else if (! skipVerifyDiskChecksumFlag) {
-            if (offset % CHECKSUM_BLOCKSIZE != 0) {
+            if(code == EVENT_LRU_CACHE_READ)  //subrata .. re invent check sum for read from cache ..
+            {
+                 checksum = ComputeChecksums(&dataBuf, numBytesIO);
+            }
+            else if (offset % CHECKSUM_BLOCKSIZE != 0) {
                 checksum = ComputeChecksums(&dataBuf, numBytesIO);
             } else {
                 const int len = (int)(numBytesIO % CHECKSUM_BLOCKSIZE);
@@ -930,6 +951,10 @@ ReadOp::HandleDone(int code, void *data)
             }
             assert((size_t)((numBytesIO + CHECKSUM_BLOCKSIZE - 1) /
                 CHECKSUM_BLOCKSIZE) == checksum.size());
+        }
+        else
+        {
+          KFS_LOG_STREAM_DEBUG << "subrata :  ReadOp::HandleDone skipVerifyDiskChecksumFlag = TRUE " <<  KFS_LOG_EOM;
         }
     }
 
@@ -1660,10 +1685,10 @@ void SendChunkForDistributedRepairOp::Request(ostream &os)
         "Decoding-coefficient: "  << decoding_coefficient   << "\r\n"
     ;
 
-    /*
     if (skipVerifyDiskChecksumFlag) {
         os << "Skip-Disk-Chksum: 1\r\n";
     }
+    /*
     if (requestChunkAccess) {
         os << "C-access: " << requestChunkAccess << "\r\n";
     }
@@ -3580,7 +3605,8 @@ GetChunkMetadataOp::HandleChunkMetaReadDone(int code, void *data)
     readOp.chunkId = chunkId;
     readOp.chunkVersion = chunkVersion;
     readOp.offset = 0;
-    readOp.numBytes = min((int64_t) 1 << 20, chunkSize);
+    //readOp.numBytes = min((int64_t) 1 << 20, chunkSize);
+    readOp.numBytes = min((int64_t)CHUNK_READ_SIZE, chunkSize); //subrata modify
 
     readOp.SetScrubOp(this);
     SET_HANDLER(this, &GetChunkMetadataOp::HandleScrubReadDone);
@@ -4045,6 +4071,8 @@ HeartbeatOp::Response(ostream& os)
     ChunkManager::generateListOfChangeInChunkLRUCache(deltaInChunkLRU);
     os << deltaInChunkLRU;
     os << "\r\n";
+
+    ChunkManager::clearListOfChangeInChunkLRUCache(); //clearing the changes I had. This changes are the delta information
 
     //subrata end
 }

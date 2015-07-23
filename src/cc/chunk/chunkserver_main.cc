@@ -624,5 +624,8 @@ static ChunkServerMain sChunkServerMain;
 int
 main(int argc, char **argv)
 {
+    //CHUNKSIZE = 64u << 20; //!< (64MB) //subrata
+    //CHUNK_READ_SIZE = CHUNKSIZE;       //subrata
+
     return KFS::sChunkServerMain.Run(argc, argv);
 }

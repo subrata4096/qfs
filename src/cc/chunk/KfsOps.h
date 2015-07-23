@@ -1973,6 +1973,7 @@ struct SendChunkForDistributedRepairOp : public ReadOp {
            this->theName = "SendChunkForDistributedRepairOp";
            SET_HANDLER(this, &SendChunkForDistributedRepairOp::HandleDone);
            //SET_HANDLER(this, &ReadForPartialDecodeOp::HandleDone);
+           this->skipVerifyDiskChecksumFlag = true;  //for these, we will not verify the check sums
         }
     ~SendChunkForDistributedRepairOp()
         {}
@@ -2185,7 +2186,8 @@ struct GetChunkMetadataOp : public KfsClientChunkOp {
     ReadOp       readOp; // internally generated
     int64_t      numBytesScrubbed;
     const char*  requestChunkAccess;
-    enum { kChunkReadSize = 1 << 20, kChunkMetaReadSize = 16 << 10 };
+    //enum { kChunkReadSize = 1 << 20, kChunkMetaReadSize = 16 << 10 };
+    enum { kChunkReadSize = CHUNK_READ_SIZE, kChunkMetaReadSize = 16 << 10 }; //subrata modify
 
     GetChunkMetadataOp(kfsSeq_t s = 0)
         : KfsClientChunkOp(CMD_GET_CHUNK_METADATA, s),

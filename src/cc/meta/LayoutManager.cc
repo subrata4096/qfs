@@ -272,6 +272,10 @@ LayoutManager::print_stripeIdentifierToChunkIDMap()
 
 void LayoutManager::updateCacheServerMap(std::string& serverName, kfsChunkId_t& chunkId, int64_t& lastAccessTime, bool isDelete)
 {
+  if((lastAccessTime == -1) || (chunkId == -1))
+  {
+     return;
+  }
   std::map<chunkId_t, CacheServer> :: iterator chunkPos = chunkIdToCacheServerMap.find(chunkId);
   if(isDelete)
   {
@@ -315,11 +319,16 @@ void LayoutManager::parseAndUpdateCacheServerMap(std::string& serverName, std::s
    {
       return;
    }
-   size_t addPosStart = receivedStringFromHeartBeat.find("Adds[");
-   size_t addPosEnd = receivedStringFromHeartBeat.find("Adds[");
-   if(addPosStart != std::string::npos)
+   std::string addKey = "Adds["; 
+   size_t addKeySize = addKey.size();
+   size_t addPosStart = receivedStringFromHeartBeat.find(addKey);
+   size_t addPosEnd = receivedStringFromHeartBeat.find("]");
+   int addStrLen = addPosEnd - (addPosStart + addKeySize) - 1;
+   if((addPosStart != std::string::npos) || (addStrLen > 0))
    {
-      std::string accessRecords = receivedStringFromHeartBeat.substr(addPosStart, (addPosEnd - addPosStart));
+      
+      addPosStart = addPosStart + addKeySize;
+      std::string accessRecords = receivedStringFromHeartBeat.substr(addPosStart, addStrLen);
 
       std::vector<std::string> stringtokens = split(accessRecords, ",");
 
@@ -335,24 +344,33 @@ void LayoutManager::parseAndUpdateCacheServerMap(std::string& serverName, std::s
           continue;
         }
         kfsChunkId_t chunkId = strtol(valTokens[0].c_str(), NULL, 10);
+        if(chunkId <= 0)
+        {
+           continue;
+        }
 
-        int64_t lastAcessTime; 
+        int64_t lastAcessTime = -1; 
         char c;
         #include <inttypes.h>
         int scanned = sscanf(valTokens[1].c_str(), "%" SCNd64 "%c", &lastAcessTime, &c);  //trying to convert string to int64 integer. string is the unix timestamp
-        assert(scanned == lastAcessTime); //otherwise, could not properly convert
+        //assert(scanned == lastAcessTime); //otherwise, could not properly convert
         //long long lastAcessTime = strtoll(valTokens[1].c_str(), NULL, 10);  //compiler error.
 
         updateCacheServerMap(serverName, chunkId, lastAcessTime , false);
       }  
    }
-   
-  size_t delPosStart = receivedStringFromHeartBeat.find("Dels[");
-  if(delPosStart != std::string::npos)
-  {
-     size_t delPosEnd = receivedStringFromHeartBeat.rfind("]");
+  
+  std::string delKey = "Dels["; 
+  size_t delKeySize = delKey.size();
 
-     std::string deleteRecords = receivedStringFromHeartBeat.substr(delPosStart, (delPosEnd - delPosStart));
+  size_t delPosStart = receivedStringFromHeartBeat.find(delKey);
+  size_t delPosEnd = receivedStringFromHeartBeat.rfind("]");
+  int delStrLen = delPosEnd - (delPosStart + delKeySize) - 1;
+  if((delPosStart != std::string::npos) || (delStrLen > 0))
+  {
+
+     delPosStart = delPosStart + delKeySize;
+     std::string deleteRecords = receivedStringFromHeartBeat.substr(delPosStart, delStrLen);
 
      std::vector<std::string> stringtokens = split(deleteRecords, ",");
      for(int i=0; i < stringtokens.size(); i ++ )
@@ -363,6 +381,10 @@ void LayoutManager::parseAndUpdateCacheServerMap(std::string& serverName, std::s
         }
         kfsChunkId_t chunkId = strtol(stringtokens[i].c_str(), NULL, 10);
         int64_t lastAcessTime = -1;
+        if(chunkId <= 0)
+        {
+           continue;
+        }
         updateCacheServerMap(serverName, chunkId, lastAcessTime , true);
      }  
      
@@ -1758,6 +1780,7 @@ LayoutManager::SetParameters(const Properties& props, int clientPort)
         MsgLogger::GetLogger()->SetParameters(
             props, "metaServer.msgLogWriter.");
     }
+    //CHUNKSIZE = (int)prop.getValue("chunkServer.CHUNKSIZE", CHUNKSIZE0) != 0;  //this is constatnt => can not be set
     ChunkServer::SetParameters(props, clientPort);
     MetaRequest::SetParameters(props);
 

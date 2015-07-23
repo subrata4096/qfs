@@ -66,7 +66,7 @@ class BufferManager;
 struct ChunkCacheEntry {
   kfsChunkId_t chunkId;
   IOBuffer* chunkCachedBuffer;
-  ChunkCacheEntry(long stripeId, IOBuffer& chunkContent, size_t buffSize);
+  ChunkCacheEntry(long stripeId, IOBuffer* chunkContent, size_t buffSize);
   virtual ~ChunkCacheEntry();
 
 };
@@ -74,6 +74,7 @@ struct ChunkCacheEntry {
 struct ChunkLRUCache {
     
     size_t cacheEntryLimit;
+    static bool doNotUseCache;
 
     //subrata we will keep a cache of recently served chunk buffers
     std::map<int64_t, ChunkCacheEntry* > chunkInMemoryCache; //timestamp -> cached objed with stripe id and buffer
@@ -84,9 +85,9 @@ struct ChunkLRUCache {
     
     ChunkLRUCache(int cacheSizeLimit);
     bool isChunkInCache(kfsChunkId_t chunkId);
-    bool readChunkFromCache(kfsChunkId_t chunkId, /*output*/ IOBuffer* chunkBuff);
-    bool addChunkToCache(kfsChunkId_t chunkId, /*input*/ IOBuffer& chunkBuff, size_t buffSize); //will keep latest "N" chunks and remove old chunk buffers
-
+    bool readChunkFromCache(kfsChunkId_t chunkId, /*output*/ IOBuffer** chunkBuff); //we will set this pointer from inside, if we find the chunk
+    bool addChunkToCache(kfsChunkId_t chunkId, /*input*/ IOBuffer* chunkBuff, size_t buffSize); //will keep latest "N" chunks and remove old chunk buffers
+    void printChunkCacheMap();
 };
 
 /// The chunk manager writes out chunks as individual files on disk.
@@ -150,6 +151,7 @@ public:
     static std::map<long, StripeRepairRequestInfo* > partialDecodingOpQueue;   //even if this is a map. this will be treated like a queue. "map" is to ensure that it will remain sorted based on temporal order .. 
 
     static ChunkLRUCache chunkLRUCache;
+    static void clearListOfChangeInChunkLRUCache();
     static void generateListOfChangeInChunkLRUCache(std::string& outputStr);
 
     static QCMutex* mMutex;

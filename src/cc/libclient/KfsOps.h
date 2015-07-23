@@ -906,7 +906,8 @@ struct AllocateOp : public KfsOp {
         masterServer(),
         chunkServers(),
         append(false),
-        spaceReservationSize(1 << 20),
+        //spaceReservationSize(1 << 20),
+        spaceReservationSize(CHUNK_READ_SIZE), //subrata 
         maxAppendersPerChunk(64),
         invalidateAllFlag(false),
         allowCSClearTextFlag(false),

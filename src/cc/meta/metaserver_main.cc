@@ -777,5 +777,8 @@ MetaServer::Startup(bool createEmptyFsFlag, bool createEmptyFsIfNoCpExistsFlag)
 int
 main(int argc, char** argv)
 {
+    //CHUNKSIZE = 64u << 20; //!< (64MB)
+    //CHUNK_READ_SIZE = CHUNKSIZE;
+
     return KFS::MetaServer::Run(argc, argv);
 }

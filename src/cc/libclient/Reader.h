@@ -232,7 +232,8 @@ public:
         int         inTimeSecBetweenRetries    = 15,
         int         inOpTimeoutSec             = 30,
         int         inIdleTimeoutSec           = 5 * 30,
-        int         inMaxReadSize              = 1 << 20,
+        //int         inMaxReadSize              = 1 << 20,
+        int         inMaxReadSize              = CHUNK_READ_SIZE, //subrata
         int         inLeaseRetryTimeout        = 3,
         int         inLeaseWaitTimeout         = 900,
         const char* inLogPrefixPtr             = 0,

@@ -203,6 +203,23 @@ main(int argc, char **argv)
 
     // Close the file-handle
     gKfsClient->Close(fd);
+
+    // Re-open the file
+    if ((fd = gKfsClient->Open(tempFilename.c_str(), O_RDWR)) < 0) {
+        cout << "Open on : " << tempFilename << " failed: " << KFS::ErrorCodeToStr(fd) << endl;
+        exit(-1);
+    }
+
+    // read some bytes
+    res = gKfsClient->Read(fd, copyBuf, numBytes);
+    if (res != numBytes) {
+        if (res < 0) {
+            cout << "Read on : " << tempFilename << " failed: " << KFS::ErrorCodeToStr(res) << endl;
+            exit(-1);
+        }
+    }
+
+ 
     printLocationOfTheChunksForAFile(tempFilename, numBytes);
     cout << "Now waiting. Do the experiment.." << endl;
     getchar();
