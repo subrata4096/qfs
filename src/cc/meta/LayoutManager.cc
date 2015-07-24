@@ -270,6 +270,18 @@ LayoutManager::print_stripeIdentifierToChunkIDMap()
     KFS_LOG_STREAM_DEBUG << ss.str() << KFS_LOG_EOM;
 }
 
+void LayoutManager::printCacheServerMap()
+{
+   KFS_LOG_STREAM_DEBUG << "subrata :  printing CacheServerMap ... " << KFS_LOG_EOM;
+   std::map<chunkId_t, CacheServer> :: iterator chunkStart = chunkIdToCacheServerMap.begin();
+   std::map<chunkId_t, CacheServer> :: iterator chunkEnd = chunkIdToCacheServerMap.end();
+   for(; chunkStart != chunkEnd; chunkStart++ )
+   {
+            
+       KFS_LOG_STREAM_DEBUG << "subrata :  printing CacheServerMap : chunkId = " << chunkStart->first << " serverName = " << (chunkStart->second).serverName << " lastAccessedTime = " << (chunkStart->second).lastAccessedTime << KFS_LOG_EOM;
+   }
+}
+
 void LayoutManager::updateCacheServerMap(std::string& serverName, kfsChunkId_t& chunkId, int64_t& lastAccessTime, bool isDelete)
 {
   if((lastAccessTime == -1) || (chunkId == -1))
@@ -8495,7 +8507,9 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
        std::map<int,chunkId_t> :: iterator vecStart = (stripePos->second).begin(); 
        std::map<int,chunkId_t> :: iterator vecEnd = (stripePos->second).end(); 
       
-
+      
+      //subrata printing the content of CacheMap that the meta server keeps based on the information provided by the chunkservers, piggybacked with the heartbeat message
+      printCacheServerMap();
 
  
        std::stringstream ss;

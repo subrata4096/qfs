@@ -982,6 +982,7 @@ public:
     bool serverSet; //for test
 
     std::map<chunkId_t, CacheServer> chunkIdToCacheServerMap; // a map which keeps track of which chunks are already in cache and in which servers. Entry will be present only for the chunks which are in LRU cache in some server. This map is updated/inserted/deleted based on the information received from the HeartBeat message. Centralized map common for all...so must be used with a lock ?
+     void printCacheServerMap();
      void updateCacheServerMap(std::string& serverName, kfsChunkId_t& chunkId, int64_t& lastAccessTime, bool isDelete);  //this will update the chunkIdToCacheServerMap 
      void parseAndUpdateCacheServerMap(std::string& serverName, std::string& receivedStringFromHeartBeat);  //this will parse the received string and update the chunkIdToCacheServerMap 
     
