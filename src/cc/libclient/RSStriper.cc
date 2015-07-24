@@ -315,6 +315,7 @@ protected:
     }
 };
 
+#if 0
 //subrata add
 void generateData(char *buf, int numBytes)
 {
@@ -373,7 +374,7 @@ void RSStriper::comparePartialVSFullDecoding_test(int chunkSize, int numData, in
 }
 //subrata end
 
-
+#endif
 
 const char* const kNullCharPtr = 0;
 
