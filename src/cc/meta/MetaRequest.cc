@@ -4879,6 +4879,7 @@ MetaChunkAllocate::request(ostream &os)
         "Max-tier: "      << (int)maxSTier     << "\r\n"
         "STRIPE_IDENTIFIER: "      << req->stripe_identifier     << "\r\n"    //subrata: adding beacuse meta server will senf this request to the chunkl server
     ;
+    KFS_LOG_STREAM_ERROR << "subrata : MetaChunkAllocate for stripe_identifier = " << req->stripe_identifier << KFS_LOG_EOM;
     if (0 <= leaseId) {
         os << "Lease-id: " << leaseId << "\r\n";
         if (req->clientCSAllowClearTextFlag) {
@@ -5184,7 +5185,8 @@ MetaChunkReplicate::handleReply(const Properties& prop)
     //lets check how long did it take to complete the repair process..
     int64_t repairDuration = now - this->requestTime;
 
-    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " REPAIR took time = " << repairDuration << " request time = " << this->requestTime << " reply time = " << now << KFS_LOG_EOM;
+    //KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " REPAIR took time = " << repairDuration << " request time = " << this->requestTime << " reply time = " << now << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " for chunkId = " << chunkId <<" REPAIR took time = " << repairDuration << " request time = " << this->requestTime << "reply time = " << now << KFS_LOG_EOM;
 
 
     invalidStripes.clear();
@@ -5333,25 +5335,27 @@ MetaDistributedRepairChunk::request(ostream& os)
     os.write(req.data(), req.size());
 
    requestTime = microseconds(); //current time in microsec . record this. we need to measure how long does the repair take
-   KFS_LOG_STREAM_DEBUG << "subrata: metaserver is sending REPAIR instruiction to chunkserver at time = " << requestTime << KFS_LOG_EOM; 
+   KFS_LOG_STREAM_DEBUG << "subrata: MetaDistributedRepairChunk (" << this << ") : metaserver is sending REPAIR instruiction to chunkserver for stripe_identifier = "  << stripe_identifier << " at time = " << requestTime << KFS_LOG_EOM; 
 
 }
 void
 MetaDistributedRepairChunk::handleReply(const Properties& prop)
 {
     const string receivedFileId(prop.getValue("File-handle", string()));
-    const long receivedStripeIdentifier(prop.getValue("STRIPE-IDENTIFIER", 0));
+    const long receivedStripeIdentifier(prop.getValue("STRIPE-IDENTIFIER", long(0)));
     const chunkId_t receivedChunkId(prop.getValue("Chunk-handle", 0));
     const seq_t receivedChunkVersion(prop.getValue("Chunk-version", seq_t(0)));
 
+    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply (" << this << ") for fid= " << fid << " for stripe_identifier = " << stripe_identifier << KFS_LOG_EOM;
     assert(receivedStripeIdentifier == this->stripe_identifier);
+    assert(receivedChunkId == this->chunkId);
 
     int64_t now = microseconds(); //current time in microsec . 
     //lets check how long did it take to complete the repair process..
     int64_t repairDuration = now - this->requestTime;
 
     //KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << receivedFileId << " REPAIR took time = " << repairDuration << KFS_LOG_EOM;
-    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " REPAIR took time = " << repairDuration << " request time = " << this->requestTime << "reply time = " << now << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " for stripe_identifier = " << stripe_identifier << " chunkId = " << chunkId <<" REPAIR took time = " << repairDuration << " request time = " << this->requestTime << "reply time = " << now << KFS_LOG_EOM;
 }
 
 //subrata end

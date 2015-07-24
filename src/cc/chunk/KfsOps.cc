@@ -4138,7 +4138,7 @@ StatsOp::Response(ostream &os)
 void DistributedRepairChunkOp::Response(ostream &os)
 {
    
-    KFS_LOG_STREAM_DEBUG << "subrata : DistributedRepairChunkOp::Response   THIS SHOULD BE ONLY CALLED BY FINAL REPAIR CHUNK SERVER> ONLY!" << KFS_LOG_EOM; 
+    KFS_LOG_STREAM_DEBUG << "subrata : DistributedRepairChunkOp::Response   THIS SHOULD BE ONLY CALLED BY FINAL REPAIR CHUNK SERVER> ONLY!  stripe_identifier= " << stripe_identifier << " and chunkId= " << chunkId << KFS_LOG_EOM; 
     //KfsOp::Response(os);
    PutHeader(this, os) <<
          "File-handle: "   << fid          << "\r\n"

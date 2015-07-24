@@ -42,6 +42,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <set>
+#include <stdlib.h> 
 #include <string.h>
 #include <boost/static_assert.hpp>
 
@@ -438,6 +439,20 @@ public:
         if (ioOffset < 0 && theSize > 0) {
             return kErrorParameters;
         }
+        //subrata add
+        //subrata: attach a stripe identifier for this set of chunks
+        //long newStripe_identifier = 1;
+        //subrata : a stripe_identifier is an integer (for performance) and is a unique number: a combination of [fid + offset]. Actually No, it is current timestamp + a counter
+        std::stringstream ss;
+        int64_t now = microseconds();
+        ss << now << stripe_identifier_static_count;
+        stripe_identifier_static_count++;
+        //long newStripe_identifier = mOffset; //test  //creating a stripe_identifier wghich will be used throughout the code for distributed repair and partial decoding
+        long newStripe_identifier; //creating a stripe_identifier wghich will be used throughout the code for distributed repair and partial decoding
+        std::string stripe_id_str = ss.str();
+        newStripe_identifier = strtoll(stripe_id_str.c_str(), NULL, 10); //converting string to integer (long) for stripe_identifier
+        //ss >> newStripe_identifier;  //converting string to integer (long) for stripe_identifier
+        //subrata end
         if (mRecoveryStripeCount > 0 && ioOffset != mOffset) {
             if (theSize > 0 &&
                     (mRecoveryEndPos < mOffset ||
@@ -446,19 +461,6 @@ public:
                     "non sequential unaligned write");
                 return kErrorParameters;
             }
-            //subrata add
-            //subrata: attach a stripe identifier for this set of chunks
-            //long newStripe_identifier = 1;
-            //subrata : a stripe_identifier is an integer (for performance) and is a unique number: a combination of [fid + offset]. Actually No, it is current timestamp + a counter
-            std::stringstream ss;
-            int64_t now = microseconds();
-            ss << now << stripe_identifier_static_count;
-            stripe_identifier_static_count++;
-            //long newStripe_identifier = mOffset; //test  //creating a stripe_identifier wghich will be used throughout the code for distributed repair and partial decoding
-            long newStripe_identifier; //creating a stripe_identifier wghich will be used throughout the code for distributed repair and partial decoding
-            //subrata end
-            ss >> newStripe_identifier;  //converting string to integer (long) for stripe_identifier
-            assert(false == ss.fail());
 
             Flush(0,newStripe_identifier);
             QCASSERT(mPendingCount == 0);
@@ -490,7 +492,7 @@ public:
             //subrata add
             //attach a stripe identifier for this set of chunks
             //long newStripe_identifier = 1;
-            long newStripe_identifier = mOffset; //test
+      //      long newStripe_identifier = mOffset; //test : subrata : already set before
             //subrata end
             for (int i = 0; i < mStripeCount + mRecoveryStripeCount; i++) {
                 Write(mBuffersPtr[i],0, i, newStripe_identifier); //subrata
@@ -500,7 +502,7 @@ public:
             //subrata add
             //attach a stripe identifier for this set of chunks
             //long newStripe_identifier = 1;
-            long newStripe_identifier = mOffset; //test
+            //long newStripe_identifier = mOffset; //test : subrata : already set before
             //subrata end
             Flush(inWriteThreshold,newStripe_identifier);
             return 0;

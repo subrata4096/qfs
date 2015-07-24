@@ -37,6 +37,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <cerrno>
 
 extern "C" {
@@ -61,6 +62,10 @@ using std::vector;
 KFS::KfsClient *gKfsClient;
 
 //subrata start
+//int numBytes = 2048;
+//int numBytes = 64 << 20;
+int numBytes = 384 << 20; //will create one stripe  384 = 64 x 6  (each chunk is 64 MB)
+//int numBytes = 768 << 20;  //will create 2 stripes for the whole file
 
 void printLocationOfTheChunksForAFile(string& fileName, long numBytes)
 {
@@ -96,6 +101,7 @@ void generateData(char *buf, int numBytes);
 
 void createAndWriteFile(string& fname, int& fd)
 {
+    int res;
     // file handle should be used in subsequent I/O calls on
     // the file.
     //subrata start
@@ -109,10 +115,6 @@ void createAndWriteFile(string& fname, int& fd)
     //subrata end
 
     // write something to the file
-    //int numBytes = 2048;
-    //int numBytes = 64 << 20;
-    int numBytes = 384 << 20; //will create one stripe  384 = 64 x 6  (each chunk is 64 MB)
-    //int numBytes = 768 << 20;  //will create 2 stripes for the whole file
     char *dataBuf = new char[numBytes];
 
     generateData(dataBuf, numBytes);
@@ -137,11 +139,14 @@ void createAndWriteFile(string& fname, int& fd)
 
 void readFile(string& fname , int fd)
 {
+    int res;
     // Re-open the file
     if ((fd = gKfsClient->Open(fname.c_str(), O_RDWR)) < 0) {
         cout << "Open on : " << fname << " failed: " << KFS::ErrorCodeToStr(fd) << endl;
         exit(-1);
     }
+
+    char *copyBuf = new char[numBytes];
 
     // read some bytes
     res = gKfsClient->Read(fd, copyBuf, numBytes);
@@ -165,7 +170,7 @@ main(int argc, char **argv)
     bool help = false;
     char optchar;
 
-    while ((optchar = getopt(argc, argv, "hp:s:")) != -1) {
+    while ((optchar = getopt(argc, argv, "hp:s:f:")) != -1) {
         switch (optchar) {
             case 'p':
                 port = atoi(optarg);
@@ -221,10 +226,11 @@ main(int argc, char **argv)
     for(int ii=0; ii < numFiles; ii++)
     {
         // Create a simple file with default replication (at most 3)
-        stringstream ss;
-        ss << baseDir << "/foo." << ii;
+        std::stringstream ss;
+        ss << baseDir;
+        ss << "/foo." << ii;
         string fname = ss.str();
-        createAndWriteFiles(fname, fdArr[i]);
+        createAndWriteFile(fname, fdArr[ii]);
     }
 
     // Get the directory listings
@@ -243,8 +249,9 @@ main(int argc, char **argv)
     for(int ii=0; ii < numFiles; ii++)
     {
         // Create a simple file with default replication (at most 3)
-        stringstream ss;
-        ss << baseDir << "/foo." << ii;
+        std::stringstream ss;
+        ss << baseDir;
+        ss << "/foo." << ii;
         string fname = ss.str();
         readFile(fname , fdArr[ii]);
     }
