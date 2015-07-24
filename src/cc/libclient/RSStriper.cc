@@ -314,6 +314,67 @@ protected:
         return (mTempBufPtr + inIndex * kTempBufSize);
     }
 };
+
+//subrata add
+void generateData(char *buf, int numBytes)
+{
+    int i;
+
+    srand(100);
+    for (i = 0; i < numBytes; i++) {
+        buf[i] = (char) ('a' + (rand() % 26));
+    }
+}
+
+/*static*/
+void RSStriper::doEncoding()
+{
+}
+/*static*/
+void RSStriper::partialDecode_test()
+{
+    std::string outMsg;
+    Decoder* decoder = ecm->GetDecoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
+
+    decoder->GetDecodingCoefficients(int inStripeCount, int inRecoveryStripeCount, int* survivors, int lost_device_id, int* coefficients)
+   
+    
+}
+/*static*/
+void RSStriper::serialDecode_test()
+{
+    std::string outMsg;
+    Decoder* decoder = ecm->GetDecoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
+
+}
+void RSStriper::comparePartialVSFullDecoding_test(int chunkSize, int numData, int numParity, int w)
+{
+    int totalDataSize = chunkSize * numData;
+
+    ECMethod* ecm = QCECMethodJerasure::GetMethod();
+
+    std::string outMsg;
+    Encoder* encoder = ecm->GetEncoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
+
+    char** dataBufs = new char[numData];
+    for(int i=0; i < numData; i++)
+    {
+      dataBufs[i] = new char[chunkSize];
+      generateData(dataBufs[i], chunkSize);
+    }
+
+
+    encoder->Encode(numData, numParity, chunkSize, dataBufs); 
+     
+
+     RSStriper::doEncoding();
+     RSStriper::serialDecode_test();
+     RSStriper::partialDecode_test();
+}
+//subrata end
+
+
+
 const char* const kNullCharPtr = 0;
 
 // Striped files with and without Reed-Solomon recovery writer implementation.
