@@ -121,10 +121,10 @@ void createAndWriteFile(string& fname, int& fd)
 
     // make a copy and write out using the copy; we keep the original
     // so we can validate what we get back is what we wrote.
-    char *copyBuf = new char[numBytes];
-    memcpy(copyBuf, dataBuf, numBytes);
+    //char *copyBuf = new char[numBytes];
+    //memcpy(copyBuf, dataBuf, numBytes);
 
-    res = gKfsClient->Write(fd, copyBuf, numBytes);
+    res = gKfsClient->Write(fd, dataBuf, numBytes);
     if (res != numBytes) {
         cout << "Was able to write only: " << res << " instead of " << numBytes << endl;
     }
@@ -134,6 +134,8 @@ void createAndWriteFile(string& fname, int& fd)
 
     // Close the file-handle
     gKfsClient->Close(fd);
+  
+    delete [] dataBuf;
 
 }
 
@@ -157,7 +159,7 @@ void readFile(string& fname , int fd)
         }
     }
 
- 
+    delete [] copyBuf;
     printLocationOfTheChunksForAFile(fname, numBytes);
 }
 
