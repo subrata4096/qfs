@@ -64,7 +64,8 @@ KFS::KfsClient *gKfsClient;
 
 void printLocationOfTheChunksForAFile(string& fileName, long numBytes)
 {
-  cout << "File name = " << fileName << endl;
+     cout << " ----- **************************************** ---- " << endl;
+     cout << "File name = " << fileName << endl;
   
      vector< vector <string> > retVec;
     int retVal = gKfsClient->GetDataLocation(fileName.c_str(),0,numBytes,retVec);
@@ -84,6 +85,7 @@ void printLocationOfTheChunksForAFile(string& fileName, long numBytes)
         }
     }
    // subrata end
+   cout << " ---------------------------------------------- " << endl;
 
 }
 
@@ -92,11 +94,74 @@ void printLocationOfTheChunksForAFile(string& fileName, long numBytes)
 // generate sample data for testing
 void generateData(char *buf, int numBytes);
 
+void createAndWriteFile(string& fname, int& fd)
+{
+    // file handle should be used in subsequent I/O calls on
+    // the file.
+    //subrata start
+    //if ((fd = gKfsClient->Create(tempFilename.c_str())) < 0) {
+    //Please refer to line 308 of src/cc/libclient/KfsClient.h
+    //if ((fd = gKfsClient->Create(tempFilename.c_str(),1,false,6,3,64<<10,2)) < 0) {
+    if ((fd = gKfsClient->Create(fname.c_str(),1,false,6,3,64<<20,3)) < 0) {  //subrata: KFS_STRIPED_FILE_TYPE_RS_JERASURE = 3 // force use of Jerasure library
+        cout << "Create failed: " << KFS::ErrorCodeToStr(fd) << endl;
+        exit(-1);
+    }
+    //subrata end
+
+    // write something to the file
+    //int numBytes = 2048;
+    //int numBytes = 64 << 20;
+    int numBytes = 384 << 20; //will create one stripe  384 = 64 x 6  (each chunk is 64 MB)
+    //int numBytes = 768 << 20;  //will create 2 stripes for the whole file
+    char *dataBuf = new char[numBytes];
+
+    generateData(dataBuf, numBytes);
+
+    // make a copy and write out using the copy; we keep the original
+    // so we can validate what we get back is what we wrote.
+    char *copyBuf = new char[numBytes];
+    memcpy(copyBuf, dataBuf, numBytes);
+
+    res = gKfsClient->Write(fd, copyBuf, numBytes);
+    if (res != numBytes) {
+        cout << "Was able to write only: " << res << " instead of " << numBytes << endl;
+    }
+
+    // flush out the changes
+    gKfsClient->Sync(fd);
+
+    // Close the file-handle
+    gKfsClient->Close(fd);
+
+}
+
+void readFile(string& fname , int fd)
+{
+    // Re-open the file
+    if ((fd = gKfsClient->Open(fname.c_str(), O_RDWR)) < 0) {
+        cout << "Open on : " << fname << " failed: " << KFS::ErrorCodeToStr(fd) << endl;
+        exit(-1);
+    }
+
+    // read some bytes
+    res = gKfsClient->Read(fd, copyBuf, numBytes);
+    if (res != numBytes) {
+        if (res < 0) {
+            cout << "Read on : " << fname << " failed: " << KFS::ErrorCodeToStr(res) << endl;
+            exit(-1);
+        }
+    }
+
+ 
+    printLocationOfTheChunksForAFile(fname, numBytes);
+}
+
 int
 main(int argc, char **argv)
 {
     string serverHost = "";
     int port = -1;
+    int numFiles = 1;
     bool help = false;
     char optchar;
 
@@ -111,6 +176,9 @@ main(int argc, char **argv)
             case 'h':
                 help = true;
                 break;
+            case 'f':
+                numFiles = atoi(optarg);
+                break;
             default:
                 cout << "Unrecognized flag " << optchar << endl;
                 help = true;
@@ -119,7 +187,7 @@ main(int argc, char **argv)
     }
 
     if (help || (serverHost == "") || (port < 0)) {
-        cout << "Usage: " << argv[0] << " -s <meta server name> -p <port> "
+        cout << "Usage: " << argv[0] << " -s <meta server name> -p <port> -f <number-of-files-to-create> "
              << endl;
         exit(0);
     }
@@ -149,22 +217,15 @@ main(int argc, char **argv)
         exit(-1);
     }
 
-    // Create a simple file with default replication (at most 3)
-    string tempFilename = baseDir + "/foo.1";
-    int fd;
-
-    // fd is our file-handle to the file we are creating; this
-    // file handle should be used in subsequent I/O calls on
-    // the file.
-    //subrata start
-    //if ((fd = gKfsClient->Create(tempFilename.c_str())) < 0) {
-    //Please refer to line 308 of src/cc/libclient/KfsClient.h
-    //if ((fd = gKfsClient->Create(tempFilename.c_str(),1,false,6,3,64<<10,2)) < 0) {
-    if ((fd = gKfsClient->Create(tempFilename.c_str(),1,false,6,3,64<<20,3)) < 0) {  //subrata: KFS_STRIPED_FILE_TYPE_RS_JERASURE = 3 // force use of Jerasure library
-        cout << "Create failed: " << KFS::ErrorCodeToStr(fd) << endl;
-        exit(-1);
+    int fdArr[numFiles];
+    for(int ii=0; ii < numFiles; ii++)
+    {
+        // Create a simple file with default replication (at most 3)
+        stringstream ss;
+        ss << baseDir << "/foo." << ii;
+        string fname = ss.str();
+        createAndWriteFiles(fname, fdArr[i]);
     }
-    //subrata end
 
     // Get the directory listings
     vector<string> entries;
@@ -179,49 +240,16 @@ main(int argc, char **argv)
         cout << entries[i] << endl;
     }
 
-    // write something to the file
-    //int numBytes = 2048;
-    //int numBytes = 64 << 20;
-    int numBytes = 384 << 20; //will create one stripe  384 = 64 x 6  (each chunk is 64 MB)
-    //int numBytes = 768 << 20;  //will create 2 stripes for the whole file
-    char *dataBuf = new char[numBytes];
-
-    generateData(dataBuf, numBytes);
-
-    // make a copy and write out using the copy; we keep the original
-    // so we can validate what we get back is what we wrote.
-    char *copyBuf = new char[numBytes];
-    memcpy(copyBuf, dataBuf, numBytes);
-
-    res = gKfsClient->Write(fd, copyBuf, numBytes);
-    if (res != numBytes) {
-        cout << "Was able to write only: " << res << " instead of " << numBytes << endl;
+    for(int ii=0; ii < numFiles; ii++)
+    {
+        // Create a simple file with default replication (at most 3)
+        stringstream ss;
+        ss << baseDir << "/foo." << ii;
+        string fname = ss.str();
+        readFile(fname , fdArr[ii]);
     }
 
-    // flush out the changes
-    gKfsClient->Sync(fd);
-
-    // Close the file-handle
-    gKfsClient->Close(fd);
-
-    // Re-open the file
-    if ((fd = gKfsClient->Open(tempFilename.c_str(), O_RDWR)) < 0) {
-        cout << "Open on : " << tempFilename << " failed: " << KFS::ErrorCodeToStr(fd) << endl;
-        exit(-1);
-    }
-
-    // read some bytes
-    res = gKfsClient->Read(fd, copyBuf, numBytes);
-    if (res != numBytes) {
-        if (res < 0) {
-            cout << "Read on : " << tempFilename << " failed: " << KFS::ErrorCodeToStr(res) << endl;
-            exit(-1);
-        }
-    }
-
- 
-    printLocationOfTheChunksForAFile(tempFilename, numBytes);
-    cout << "Now waiting. Do the experiment.." << endl;
+    cout << numFiles << " Written and Read back." << "  Now waiting. Do the experiment.." << endl;
     getchar();
     getchar();
 
