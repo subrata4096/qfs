@@ -8378,7 +8378,7 @@ void LayoutManager::SelectSetOfSourceServers(int serverCountNeeded, std::map<int
      
        for(int i =0 ; i < stillMissing ; i ++)
        {
-	 if(skippingServerBeg == skippingServers.end())
+	 if(skippingServerBeg != skippingServers.end())
 	 {
             selectedSources[skippingServerBeg->first] = true;
             skippingServerBeg++;
