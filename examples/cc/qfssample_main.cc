@@ -259,8 +259,8 @@ main(int argc, char **argv)
     }
 
     cout << numFiles << " Written and Read back." << "  Now waiting. Do the experiment.." << endl;
-    getchar();
-    getchar();
+    //getchar();
+    //getchar();
 
     /*
     // Determine the file-size
