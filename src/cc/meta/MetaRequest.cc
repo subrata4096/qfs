@@ -5189,6 +5189,23 @@ MetaChunkReplicate::handleReply(const Properties& prop)
     KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " for chunkId = " << chunkId <<" REPAIR took time = " << repairDuration << " request time = " << this->requestTime << "reply time = " << now << KFS_LOG_EOM;
 
 
+    //subrata : clean up the repair info
+    std::map<chunkId_t, RepairServerInfo*> :: iterator repairInfoPos = ChunkReapirServersBeingUsed.find(chunkId);
+    assert(repairInfoPos != ChunkReapirServersBeingUsed.end());
+    std::map<ChunkServerPtr, bool> :: begIter = (repairInfoPos->second->RepairServersMap).begin();
+    std::map<ChunkServerPtr, bool> :: endIter = (repairInfoPos->second->RepairServersMap).end();
+    for(;begIter != endIter; begIter++)
+    {
+         std::map<ChunkServerPtr, bool> :: serverPos = ServersBeingUsedMap.find(begIter->first);
+	 assert(serverPos != ServersBeingUsedMap.end());
+	 ServersBeingUsedMap.erase(serverPos);
+    }
+    delete (repairInfoPos->second);
+    ChunkReapirServersBeingUsed.erase(repairInfoPos);
+
+
+
+
     invalidStripes.clear();
     const int sc = numStripes + numRecoveryStripes;
     if (status == 0 || sc <= 0) {

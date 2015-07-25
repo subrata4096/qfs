@@ -8349,7 +8349,48 @@ struct PartialDecodingInfo
       hosting_server(hostServer)
     {}
 };
-int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,PartialDecodingInfo> >& operationMapForChunkServers, std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer)
+
+void LayoutManager::SelectSetOfSourceServers(int serverCountNeeded, std::map<int, ChunkServerPtr>& availableSourceServeres, std::map<ChunkServerPtr, bool>& selectedSources)
+{
+     std::map<ChunkServerPtr, bool> haveCache;
+     std::map<ChunkServerPtr, bool> doNotHaveCache;
+     std::map<ChunkServerPtr, bool> skippingServers;
+     std::map<int, ChunkServerPtr> :: iterator servStart = availableSourceServeres.begin(); 
+     std::map<int, ChunkServerPtr> :: iterator servEnd = availableSourceServeres.end();
+     for(; servStart != servEnd; servStart++)
+     {
+           std::map<ChunkServerPtr, bool> :: servPos = ServersBeingUsedMap(servStart->second);
+	   if(servPos == ServersBeingUsedMap.end())
+	   {
+                 selectedSources[servStart->second] = true;
+	   }   	 
+	   else
+           {
+		 skippingServers[servStart->second] = true;
+	   }  
+
+     }
+     int stillMissing =  serverCountNeeded - (int)selectedSources.size();
+
+     if(stillMissing > 0)
+     {
+       std::map<ChunkServerPtr, bool> :: iterator skippingServerBeg = skippingServers.begin();
+     
+       for(int i =0 ; i < stillMissing ; i ++)
+       {
+	 if(skippingServerBeg == skippingServers.end())
+	 {
+            selectedSources[skippingServerBeg->first] = true;
+            skippingServerBeg++;
+	 }
+       }
+       stillMissing =  serverCountNeeded - (int)selectedSources.size();
+       assert(stillMissing <= 0); //otherwise we do not have enough servers. Something went wrong
+     }
+
+}
+
+int LayoutManager::PopulateDistributedRepairOperationTable(chunkId_t chunkId, std::map<std::string, std::map<int,PartialDecodingInfo> >& operationMapForChunkServers, std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer)
 {
          std::map<int,PartialDecodingInfo> opMap2, opMap4, opMap6, opMapDst; //operation maps for source server index 2,4,6 and Dst
           
@@ -8370,7 +8411,8 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
         std::string key7 = servIter->second; servIter++;
         std::string key8 = servIter->second; 
         */
-        
+
+	 /*        
         std::string key1 = eightRemainingSourceServeres[1]->GetHostPortStr();
         std::string key2 = eightRemainingSourceServeres[2]->GetHostPortStr();
         std::string key3 = eightRemainingSourceServeres[3]->GetHostPortStr();
@@ -8379,9 +8421,39 @@ int LayoutManager::PopulateDistributedRepairOperationTable(std::map<std::string,
         std::string key6 = eightRemainingSourceServeres[6]->GetHostPortStr();
         std::string key7 = eightRemainingSourceServeres[7]->GetHostPortStr();
         std::string key8 = eightRemainingSourceServeres[8]->GetHostPortStr();
+        */
+
+	std::map<ChunkServerPtr, bool> selectedSources;
+        int serverCountNeeded = 6;   //according to 6 + 3 RS coding. Have to change for other codes..
         
+	SelectSetOfSourceServers(serverCountNeeded, eightRemainingSourceServeres, selectedSources);	
+
+	std::map<int, std::string> ::  iterator servIter = selectedSources.begin();
+        std::string key1 = servIter->first->GetHostPortStr(); servIter++;
+        std::string key2 = servIter->first->GetHostPortStr(); servIter++;
+        std::string key3 = servIter->first->GetHostPortStr(); servIter++;
+        std::string key4 = servIter->first->GetHostPortStr(); servIter++;
+        std::string key5 = servIter->first->GetHostPortStr(); servIter++;
+        std::string key6 = servIter->first->GetHostPortStr(); 
 
         std::string dstKey = destinationServer->GetHostPortStr();
+
+	//mark the servers being used. So that we can try to avoid them for other set of repairs
+	//
+	RepairServerInfo* repairInfo = new RepairServerInfo();
+
+	servIter = selectedSources.begin();
+	std::map<int, std::string> ::  iterator servIterEnd = selectedSources.end();
+	for(;servIter != servIterEnd; servIter++)
+	{
+	  ServersBeingUsedMap[servIter->first] = true;
+	  (repairInfo->RepairServersMap)[servIter->first] = true;
+	}
+	ServersBeingUsedMap[destinationServer] = true; //mark the destination server as being used as well
+	(repairInfo->RepairServersMap)[destinationServer] = true;
+	
+	ChunkReapirServersBeingUsed[chunkId] = repairInfo;  //add the information corresponding to this chunk id
+
         
 
         //ops for round or temporal time = 1
@@ -8462,14 +8534,27 @@ ChunkServerPtr LayoutManager::GetDestinationServerForRepair(std::map<std::string
 {
    //Try to find a server which is not hosting this stripe...
    Servers::iterator chunkServerBegin = mChunkServers.begin(); 
-   Servers::iterator chunkServerEnd = mChunkServers.end(); 
+   Servers::iterator chunkServerEnd = mChunkServers.end();
+
+   ChunkServerPtr tentativeDestServer;
+   bool hasTentative = false; 
    for( ; chunkServerBegin != chunkServerEnd; chunkServerBegin++ )
    {
       if(existingHosts.find((*chunkServerBegin)->GetHostPortStr()) == existingHosts.end())
       {
-             return (*chunkServerBegin);
+	     tentativeDestServer = (*chunkServerBegin);
+             hasTentative = true; 
+	     if(ServersBeingUsedMap(*chunkServerBegin) == ServersBeingUsedMap.end())
+	     {
+                return (*chunkServerBegin);
+	     }
       }     
    }
+   if(hasTentative)
+   {
+	   return tentativeDestServer;
+   }
+
    //no  server found with no-clash.. take the first one
    chunkServerBegin = mChunkServers.begin();
    return (*chunkServerBegin);
