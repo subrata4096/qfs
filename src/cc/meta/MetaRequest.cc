@@ -5190,19 +5190,18 @@ MetaChunkReplicate::handleReply(const Properties& prop)
 
 
     //subrata : clean up the repair info
-    std::map<chunkId_t, RepairServerInfo*> :: iterator repairInfoPos = ChunkReapirServersBeingUsed.find(chunkId);
-    assert(repairInfoPos != ChunkReapirServersBeingUsed.end());
-    std::map<ChunkServerPtr, bool> :: begIter = (repairInfoPos->second->RepairServersMap).begin();
-    std::map<ChunkServerPtr, bool> :: endIter = (repairInfoPos->second->RepairServersMap).end();
+    std::map<chunkId_t, RepairServerInfo*> :: iterator repairInfoPos = gLayoutManager.ChunkReapirServersBeingUsed.find(chunkId);
+     assert(repairInfoPos != gLayoutManager.ChunkReapirServersBeingUsed.end());
+    std::map<ChunkServerPtr, bool> :: iterator begIter = (repairInfoPos->second->RepairServersMap).begin();
+    std::map<ChunkServerPtr, bool> :: iterator endIter = (repairInfoPos->second->RepairServersMap).end();
     for(;begIter != endIter; begIter++)
     {
-         std::map<ChunkServerPtr, bool> :: serverPos = ServersBeingUsedMap.find(begIter->first);
-	 assert(serverPos != ServersBeingUsedMap.end());
-	 ServersBeingUsedMap.erase(serverPos);
+         std::map<ChunkServerPtr, bool> :: iterator  serverPos = gLayoutManager.ServersBeingUsedMap.find(begIter->first);
+	 assert(serverPos != gLayoutManager.ServersBeingUsedMap.end());
+	 gLayoutManager.ServersBeingUsedMap.erase(serverPos);
     }
     delete (repairInfoPos->second);
-    ChunkReapirServersBeingUsed.erase(repairInfoPos);
-
+    gLayoutManager.ChunkReapirServersBeingUsed.erase(repairInfoPos);
 
 
 

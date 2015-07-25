@@ -952,9 +952,7 @@ struct CacheServer
 struct RepairServerInfo
 {
     std::map<ChunkServerPtr, bool> RepairServersMap;
-    RepairServerInfo()
-    { }
-}
+};
 
 ///
 /// LayoutManager is responsible for chunk allocation, re-replication, recovery,
@@ -993,8 +991,8 @@ public:
      void updateCacheServerMap(std::string& serverName, kfsChunkId_t& chunkId, int64_t& lastAccessTime, bool isDelete);  //this will update the chunkIdToCacheServerMap 
      void parseAndUpdateCacheServerMap(std::string& serverName, std::string& receivedStringFromHeartBeat);  //this will parse the received string and update the chunkIdToCacheServerMap 
    
-    std::map<ChunkServerPtr, bool> :: ServersBeingUsedMap; //keeps track of the servers being used for this particular chunk repair.. 
-    std::map<chunkId_t, RepairServerInfo*> :: ChunkReapirServersBeingUsed; //keeps track of the servers being used for this particular chunk repair.. 
+    std::map<ChunkServerPtr, bool> ServersBeingUsedMap; //keeps track of the servers being used for this particular chunk repair.. 
+    std::map<chunkId_t, RepairServerInfo*> ChunkReapirServersBeingUsed; //keeps track of the servers being used for this particular chunk repair.. 
     //subrata end
 
     LayoutManager();
@@ -2167,7 +2165,7 @@ protected:
 
    int GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, std::map<int,int>& decodingCoefficient);
    
-   int PopulateDistributedRepairOperationTable(std::map<std::string, std::map<int,PartialDecodingInfo> >& operationMapForChunkServers,std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer);
+   int PopulateDistributedRepairOperationTable(chunkId_t chunkId, std::map<std::string, std::map<int,PartialDecodingInfo> >& operationMapForChunkServers,std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer);
 
    void SelectSetOfSourceServers(int serverCountNeeded, std::map<int, ChunkServerPtr>& availableSourceServeres, std::map<ChunkServerPtr, bool>& selectedSources); 
     //subrata end

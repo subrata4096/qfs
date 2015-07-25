@@ -8359,7 +8359,7 @@ void LayoutManager::SelectSetOfSourceServers(int serverCountNeeded, std::map<int
      std::map<int, ChunkServerPtr> :: iterator servEnd = availableSourceServeres.end();
      for(; servStart != servEnd; servStart++)
      {
-           std::map<ChunkServerPtr, bool> :: servPos = ServersBeingUsedMap(servStart->second);
+           std::map<ChunkServerPtr, bool> :: iterator servPos = ServersBeingUsedMap.find(servStart->second);
 	   if(servPos == ServersBeingUsedMap.end())
 	   {
                  selectedSources[servStart->second] = true;
@@ -8428,7 +8428,7 @@ int LayoutManager::PopulateDistributedRepairOperationTable(chunkId_t chunkId, st
         
 	SelectSetOfSourceServers(serverCountNeeded, eightRemainingSourceServeres, selectedSources);	
 
-	std::map<int, std::string> ::  iterator servIter = selectedSources.begin();
+	std::map<ChunkServerPtr, bool> ::  iterator servIter = selectedSources.begin();
         std::string key1 = servIter->first->GetHostPortStr(); servIter++;
         std::string key2 = servIter->first->GetHostPortStr(); servIter++;
         std::string key3 = servIter->first->GetHostPortStr(); servIter++;
@@ -8443,7 +8443,7 @@ int LayoutManager::PopulateDistributedRepairOperationTable(chunkId_t chunkId, st
 	RepairServerInfo* repairInfo = new RepairServerInfo();
 
 	servIter = selectedSources.begin();
-	std::map<int, std::string> ::  iterator servIterEnd = selectedSources.end();
+	std::map<ChunkServerPtr, bool> ::  iterator servIterEnd = selectedSources.end();
 	for(;servIter != servIterEnd; servIter++)
 	{
 	  ServersBeingUsedMap[servIter->first] = true;
@@ -8544,7 +8544,7 @@ ChunkServerPtr LayoutManager::GetDestinationServerForRepair(std::map<std::string
       {
 	     tentativeDestServer = (*chunkServerBegin);
              hasTentative = true; 
-	     if(ServersBeingUsedMap(*chunkServerBegin) == ServersBeingUsedMap.end())
+	     if(ServersBeingUsedMap.find(*chunkServerBegin) == ServersBeingUsedMap.end())
 	     {
                 return (*chunkServerBegin);
 	     }
@@ -8675,7 +8675,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
       selectedDstChunkPtr = this->GetDestinationServerForRepair(existingHosts);
 
       std::map<std::string, std::map<int,PartialDecodingInfo> > operationMapForChunkServers;
-      PopulateDistributedRepairOperationTable(operationMapForChunkServers, eightRemainingSourceServeres, selectedDstChunkPtr);
+      PopulateDistributedRepairOperationTable(theMissing_chunkId, operationMapForChunkServers, eightRemainingSourceServeres, selectedDstChunkPtr);
       
       std::map<int,int> decodingCoefficient;
       this->GetPartialDecodingInformation(stripe_identifier, fa->numStripes, fa->numRecoveryStripes, theRS_chunk_index_missing, decodingCoefficient);
