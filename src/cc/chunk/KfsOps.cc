@@ -1529,7 +1529,7 @@ int DistributedRepairChunkOp::ParseOperationString(const std::string& operationS
 void
 DistributedRepairChunkOp::Execute()
 {
-    KFS_LOG_STREAM_DEBUG << "Chunk-id=" << this->chunkId << " , stripe_identifier="<< this->stripe_identifier << " , decoding_coefficient=" << this->decoding_coefficient << " , theSequenceString=" << this->theSequenceString << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata : DistributedRepairChunkOp::Execute(" << this << ") Chunk-id=" << this->chunkId << " , stripe_identifier="<< this->stripe_identifier << " , decoding_coefficient=" << this->decoding_coefficient << " , theSequenceString=" << this->theSequenceString << KFS_LOG_EOM;
 
 
    std::vector<std::string> stringtokens = KFS::split(this->theSequenceString, "TIME");
@@ -1832,6 +1832,7 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
 
             //subrata :  comment this section to disable partial decoding START
 
+
              //find out the proper width for galois field calculations
 
              /*
@@ -1848,13 +1849,17 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
              //prepare buffers for partial decoding
              size_t numberOfChunksToDecode = issuedOpList.size() + 1;   //issuedOpList.size() will get + mine
 
-             //allocate temporary source buffers..
-             char** tempDecodingBufPtr = new char*[numberOfChunksToDecode];
 
              //allocate the buffer which will store the final result of this partial decoding
              char* outputDecodedPtr = new char[CHUNKSIZE];
+             memset(outputDecodedPtr,1,CHUNKSIZE);
+
+#if 0     // temp comment. just want to see the impact of network and IO
+             
              memset(outputDecodedPtr,0,CHUNKSIZE);
 
+             //allocate temporary source buffers..
+             char** tempDecodingBufPtr = new char*[numberOfChunksToDecode];
              for(int i=0; i < numberOfChunksToDecode ; i ++)
              {
                  //allocate temporary buffers
@@ -1913,14 +1918,12 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
 
            //subrata :  comment this section to disable partial decoding END
          
-
-               dataBuf.Clear(); //clear what over was there before..
-               dataBuf.CopyIn(outputDecodedPtr,CHUNKSIZE); //now copy in the calculated / partially decoded bytes 
-
                //now delete the temporary buffers
                delete [] tempDecodingBufPtr; 
+#endif
+               dataBuf.Clear(); //clear what over was there before..
+               dataBuf.CopyIn(outputDecodedPtr,CHUNKSIZE); //now copy in the calculated / partially decoded bytes 
                delete outputDecodedPtr;
-
                  
                //send the calculated result to upstream
                numBytesIO = dataBuf.BytesConsumable();
@@ -1971,17 +1974,19 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
       }
       else
       {
-           char* tempDecodingBufPtr = new char[CHUNKSIZE];
-           memset(tempDecodingBufPtr,0,CHUNKSIZE);  
            //allocate the buffer which will store the final result of this partial decoding
            char* outputDecodedPtr = new char[CHUNKSIZE];
-           memset(outputDecodedPtr,0,CHUNKSIZE);  
+           memset(outputDecodedPtr,1,CHUNKSIZE);  
           
            int64_t totalDecodingTime = 0; //total time it took to do the partial decoding...
 
             numBytesIO = dataBuf.BytesConsumable();
             if(numBytesIO > 0)
             {
+#if 0     // temp comment. just want to see the impact of network and IO
+               memset(outputDecodedPtr,0,CHUNKSIZE);  
+               char* tempDecodingBufPtr = new char[CHUNKSIZE];
+               memset(tempDecodingBufPtr,0,CHUNKSIZE);  
 
                dataBuf.CopyOut(tempDecodingBufPtr, numBytesIO);  //this one has my data in it. We will multiply it with decode coeff (expect for the final destination)
                //multiply my own with decoiding coeff. Others have already multiplied there own BEFORE sending to me
@@ -2007,13 +2012,14 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
                totalDecodingTime += (microseconds() - tStart);
             
                KFS_LOG_STREAM_DEBUG << "subrata :  For stripe_identifier = " << this->stripe_identifier << "  Partial decoding time on This node = " << totalDecodingTime << KFS_LOG_EOM; 
+               //now delete the temporary buffers
+               delete tempDecodingBufPtr; 
+#endif
       
                dataBuf.Clear(); //clear what over was there before..
                dataBuf.CopyIn(outputDecodedPtr,CHUNKSIZE); //now copy in the calculated / partially decoded bytes 
             }
 
-            //now delete the temporary buffers
-            delete tempDecodingBufPtr; 
             delete outputDecodedPtr;
 
    
@@ -4145,7 +4151,7 @@ StatsOp::Response(ostream &os)
 void DistributedRepairChunkOp::Response(ostream &os)
 {
    
-    KFS_LOG_STREAM_DEBUG << "subrata : DistributedRepairChunkOp::Response   THIS SHOULD BE ONLY CALLED BY FINAL REPAIR CHUNK SERVER> ONLY!  stripe_identifier= " << stripe_identifier << " and chunkId= " << chunkId << KFS_LOG_EOM; 
+    KFS_LOG_STREAM_DEBUG << "subrata : DistributedRepairChunkOp::Response(" << this << ") THIS SHOULD BE ONLY CALLED BY FINAL REPAIR CHUNK SERVER> ONLY!  stripe_identifier= " << stripe_identifier << " and chunkId= " << chunkId << KFS_LOG_EOM; 
     //KfsOp::Response(os);
    PutHeader(this, os) <<
          "File-handle: "   << fid          << "\r\n"

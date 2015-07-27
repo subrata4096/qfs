@@ -164,13 +164,16 @@ ECMethod::FindDescription(
 /*static*/
 int ECMethod::Jerasure_Multiple_Add(int w, int size, int multCoeff, char* sptr, char* dptr, int xorWithDstAfterMultiply)
 {
-     return  jerasure_partial_decode_multiply_and_add(w, size, multCoeff, sptr, dptr, xorWithDstAfterMultiply);
+     return 0;//Commenting this out as  we do not want to compare... decoding for now. just want to compare network transfer and IO
+
+     //return  jerasure_partial_decode_multiply_and_add(w, size, multCoeff, sptr, dptr, xorWithDstAfterMultiply);
 }
 
 /*static*/
 int ECMethod::Jerasure_Add(int size, char* sptr, char* dptr)
 {
-    jerasure_partial_decode_add(size, sptr, dptr); //this routine optimized for xor
+    return 0; // //Commenting this out as  we do not want to compare... decoding for now. just want to compare network transfer and IO
+    //jerasure_partial_decode_add(size, sptr, dptr); //this routine optimized for xor
     //return jerasure_partial_decode_add(int w, int size, char* sptr, char* dptr);       //this one is NOT optimized
     return 0;
 }
@@ -178,7 +181,8 @@ int ECMethod::Jerasure_Add(int size, char* sptr, char* dptr)
 /*static*/
 int ECMethod::Jerasure_Multiply(int w, int size, int multCoeff, char* sptr, char* dptr)
 {
-   return jerasure_partial_decode_multiply(w, size, multCoeff, sptr, dptr);
+   return 0;//Commenting this out as  we do not want to compare... decoding for now. just want to compare network transfer and IO
+   //return jerasure_partial_decode_multiply(w, size, multCoeff, sptr, dptr);
 }
 
 //subrata end

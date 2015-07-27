@@ -167,6 +167,7 @@ private:
             void**     inBuffersPtr,
             int const* inMissingStripesIdxPtr)
         {
+            return 0;  //Commenting this out as  we do not want to compare... decoding for now. just want to compare network transfer and IO
             return jerasure_matrix_decode(
                 inStripeCount,
                 inRecoveryStripeCount,
@@ -182,6 +183,15 @@ private:
         //subrata add
         virtual int GetDecodingCoefficients(int inStripeCount, int inRecoveryStripeCount, int* survivors, int lost_device_id, int* coefficients)
         {
+            //subrata for now just want to concentrate on network transfer and IO.. so not calling actual decoding function
+            //temporrary code start
+            for(int i = 0 ;  i < inStripeCount ;  i ++)
+            {
+                coefficients[i] = 1;
+            }
+            return 0;
+
+            //temporary code end..
             return jerasure_get_decoding_coefficients_for_survivors_and_particular_erasure(inStripeCount,inRecoveryStripeCount,
                                                                                             mW,mMatrixPtr,survivors,lost_device_id,coefficients);
            
