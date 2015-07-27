@@ -1930,6 +1930,7 @@ ChunkServer::DistributeRepairInformation(fid_t fid, chunkId_t chunkId, long& str
     MetaChunkReplicate::FileRecoveryInFlightCount::iterator it) 
 {
 
+   KFS_LOG_STREAM_ERROR << "subrata : stripe_id = " << stripe_identifier << " missing chunkId = " << chunkId << "dst = " << dataServer->GetServerLocation() << " opList = " << operationSeq << KFS_LOG_EOM;
    MetaDistributedRepairChunk* r  = new MetaDistributedRepairChunk(NextSeq(), shared_from_this(), fid, chunkId,
         dataServer->GetServerLocation(), decodeCoeff, stripe_identifier, operationSeq, it, dataServer);
   

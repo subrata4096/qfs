@@ -1748,6 +1748,7 @@ struct ReadOp : public KfsClientChunkOp {
     // for getting chunk metadata, we do a data scrub.
     GetChunkMetadataOp* scrubOp;
     BufferManager*      devBufMgr;
+    int64_t opIssueTime;
 
     ReadOp(kfsSeq_t s = 0)
         : KfsClientChunkOp(CMD_READ, s),
@@ -1765,7 +1766,8 @@ struct ReadOp : public KfsClientChunkOp {
           requestChunkAccess(0),
           wop(0),
           scrubOp(0),
-          devBufMgr(0)
+          devBufMgr(0),
+          opIssueTime(0)
         { SET_HANDLER(this, &ReadOp::HandleDone); }
 
    ReadOp(KFS::KfsOp_t opcode,kfsSeq_t s = 0)
@@ -1784,7 +1786,8 @@ struct ReadOp : public KfsClientChunkOp {
           requestChunkAccess(0),
           wop(0),
           scrubOp(0),
-          devBufMgr(0)
+          devBufMgr(0),
+          opIssueTime(0)
         { SET_HANDLER(this, &ReadOp::HandleDone); } 
 
    ReadOp(WriteOp* w, int64_t o, size_t n)
@@ -1803,7 +1806,8 @@ struct ReadOp : public KfsClientChunkOp {
           requestChunkAccess(0),
           wop(w),
           scrubOp(0),
-          devBufMgr(0)
+          devBufMgr(0),
+          opIssueTime(0)
     {
         clnt    = w;
         chunkId = w->chunkId;

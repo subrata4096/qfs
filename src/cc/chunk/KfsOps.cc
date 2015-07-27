@@ -1670,6 +1670,9 @@ void SendChunkForDistributedRepairOp::Execute()
 void SendChunkForDistributedRepairOp::Request(ostream &os)
 {
     //subrata this is being called .. instead of the Execute()
+
+    opIssueTime = microseconds();
+
     KFS_LOG_STREAM_DEBUG << "subrata : SendChunkForDistributedRepairOp::Request  Going to request a chunk-id (" << this->chunkId << " ) from a host for stripe repair " << KFS_LOG_EOM;
     
       os <<
@@ -2094,6 +2097,8 @@ int ReadForPartialDecodeOp::HandleDone(int code, void* data)
 void ReadForPartialDecodeOp::Execute()
 {
 
+   opIssueTime = microseconds();
+
    this->numBytes = CHUNKSIZE;    //hack!!   Do not know what exactly this means...
 
    bool isChunkStable = gChunkManager.IsChunkStable(this->chunkId);
@@ -2159,6 +2164,8 @@ void ReadForPartialDecodeOp::Response(ostream &os)
        uint32_t cksum = ComputeBlockChecksum(&(this->dataBuf), (size_t)bytesInBuff);
        KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::Response Going to send back a chunkId="<< this->chunkId << " of size=" << bytesInBuff << " and cksum=" << cksum << KFS_LOG_EOM;
        ReadOp::Response(os);
+       int64_t t2 = microseconds() - this->opIssueTime;
+       KFS_LOG_STREAM_DEBUG << "subrata :  time debug : ReadForPartialDecodeOp for stripe_id = " << this->stripe_identifier << " chunkId="<< this->chunkId << " of size= " << bytesInBuff << " took time = " << t2 << KFS_LOG_EOM;
        //os.flush();
     }
     return;
