@@ -1474,6 +1474,7 @@ int ChunkManager::insertUpstreamReaderIntoPartialDecodingOpQueue(long theStripe_
 //static 
 int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier)
 {
+    int64_t t1 = microseconds();
     QCStMutexLocker lock(mMutex);  //subrata take lock
 
     KFS_LOG_STREAM_DEBUG <<  "subrata :  Trying to delete " << theStripe_identifier << " from ChunkManager::partialDecodingOpQueue" <<KFS_LOG_EOM;
@@ -1490,12 +1491,15 @@ int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier)
    KFS_LOG_STREAM_DEBUG <<  "subrata :  DELETED " << theStripe_identifier << " from ChunkManager::partialDecodingOpQueue" <<KFS_LOG_EOM;
 
    QCStMutexUnlocker  unlocker(mMutex); //subrata :  unlock
+   int64_t t2 = microseconds() - t1;
+   KFS_LOG_STREAM_DEBUG <<  "subrata :  Mutex : deleteFromPartialDecodingOpQueue : DELETE of  " << theStripe_identifier << " took time  = " << t2 <<KFS_LOG_EOM;
    return 0;
   
 }
 
 void ChunkManager::printPartialDecodingOpQueue()
 {
+   int64_t t1 = microseconds();
   QCStMutexLocker lock(mMutex);  //subrata take lock
    std::map<long, StripeRepairRequestInfo* >:: iterator stripePosStart = ChunkManager::partialDecodingOpQueue.begin();
    std::map<long, StripeRepairRequestInfo* >:: iterator stripePosEnd = ChunkManager::partialDecodingOpQueue.end();
@@ -1506,11 +1510,14 @@ void ChunkManager::printPartialDecodingOpQueue()
         KFS_LOG_STREAM_DEBUG << "Stripe id = " << stripePosStart->first << " pointer " << stripePosStart->second << " upstreamPtr = " << stripePosStart->second->upstreamReadOp<< KFS_LOG_EOM;
    }
    QCStMutexUnlocker    unlocker(mMutex); //subrata :  unlock
+    int64_t t2 = microseconds() - t1;
+    KFS_LOG_STREAM_DEBUG <<  "subrata :  Mutex : printPartialDecodingOpQueue : PRINT  took time  = " << t2 <<KFS_LOG_EOM;
 }
 
 //static 
 int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier, int theTemporalTime, kfsChunkId_t thechunkId)
 {
+   int64_t t1 = microseconds();
    QCStMutexLocker lock(mMutex);  //subrata lock
     KFS_LOG_STREAM_DEBUG <<  "subrata :  Trying to delete " << theStripe_identifier << " from ChunkManager::partialDecodingOpQueue" <<KFS_LOG_EOM;
    std::map<long, StripeRepairRequestInfo* >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
@@ -1546,6 +1553,8 @@ int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier, in
    }
 
     QCStMutexUnlocker  unlocker(mMutex); //subrata :  unlock
+   int64_t t2 = microseconds() - t1;
+   KFS_LOG_STREAM_DEBUG <<  "subrata :  Mutex : deleteFromPartialDecodingOpQueue : DELETE of  " << theStripe_identifier << " chunkID = "<< thechunkId << " took time  = " << t2 <<KFS_LOG_EOM;
 
     return 0;
 
@@ -1558,6 +1567,7 @@ int ChunkManager::deleteFromPartialDecodingOpQueue(long theStripe_identifier, in
 //or else return the lowest temporal time .... proceed only if the temporal time of the resquested operation is LESS than thihs 
 int ChunkManager::getLowestTemporalTimeInPartialDecodingOpQueue(long theStripe_identifier)
 {
+   int64_t t1 = microseconds();
   QCStMutexLocker lock(mMutex);  //subrata take lock
   std::map<long, StripeRepairRequestInfo* >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
 
@@ -1574,14 +1584,19 @@ int ChunkManager::getLowestTemporalTimeInPartialDecodingOpQueue(long theStripe_i
    }
    //else return the lowest value. Remeber the map is already sorted by default!!
    
+   int lowestTime = beginPos->first;
    QCStMutexUnlocker  unlocker(mMutex); //subrata :  unlock
-   return beginPos->first;
+   int64_t t2 = microseconds() - t1;
+   KFS_LOG_STREAM_DEBUG <<  "subrata :  Mutex : getLowestTemporalTimeInPartialDecodingOpQueue : of  " << theStripe_identifier << " took time  = " << t2 <<KFS_LOG_EOM;
+   
+  return lowestTime;
 }
 
 //static
 //returns "false" if no operation found
 bool ChunkManager::getIssuedOperationsDownstream(long theStripe_identifier, std::list<SendChunkForDistributedRepairOp*>& opList)
 {
+   int64_t t1 = microseconds();
   QCStMutexLocker lock(mMutex);  //subrata take lock
   std::map<long, StripeRepairRequestInfo* >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
 
@@ -1610,12 +1625,15 @@ bool ChunkManager::getIssuedOperationsDownstream(long theStripe_identifier, std:
    }
    //else we have found the list of operations for a particular stripe repair... return true
    QCStMutexUnlocker    unlocker(mMutex); //subrata :  unlock
+   int64_t t2 = microseconds() - t1;
+   KFS_LOG_STREAM_DEBUG <<  "subrata :  Mutex : getIssuedOperationsDownstream : of  " << theStripe_identifier << " took time  = " << t2 <<KFS_LOG_EOM;
    return true;
 }
 //static
 ReadForPartialDecodeOp* ChunkManager::getOperationUpstream(long theStripe_identifier)
 {
    ChunkManager::printPartialDecodingOpQueue();
+   int64_t t1 = microseconds();
  
   QCStMutexLocker lock(mMutex);  //subrata take lock
   std::map<long, StripeRepairRequestInfo* >:: iterator stripePos = ChunkManager::partialDecodingOpQueue.find(theStripe_identifier);
@@ -1626,10 +1644,13 @@ ReadForPartialDecodeOp* ChunkManager::getOperationUpstream(long theStripe_identi
       return NULL;
    }
 
+   ReadForPartialDecodeOp* theOp =  stripePos->second->upstreamReadOp;
    QCStMutexUnlocker    unlocker(mMutex); //subrata :  unlock
    KFS_LOG_STREAM_DEBUG <<  "subrata :  returning upstreaminfo " << stripePos->second << " and upstreamReader " << stripePos->second->upstreamReadOp <<KFS_LOG_EOM;
+   int64_t t2 = microseconds() - t1;
+   KFS_LOG_STREAM_DEBUG <<  "subrata :  Mutex : getOperationUpstream : of  " << theStripe_identifier << " took time  = " << t2 <<KFS_LOG_EOM;
 
-   return stripePos->second->upstreamReadOp;
+   return theOp;
 
 }
 //subrata end
