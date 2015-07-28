@@ -61,10 +61,14 @@ using std::vector;
 
 KFS::KfsClient *gKfsClient;
 
+
+
 //subrata start
+
+long stripeSize = 16u <<  20;
 //int numBytes = 2048;
 //int numBytes = 64 << 20;
-int numBytes = 384 << 20; //will create one stripe  384 = 64 x 6  (each chunk is 64 MB)
+long numBytes = 6 * stripeSize; //will create one stripe  384 = 64 x 6  (each chunk is 64 MB)
 //int numBytes = 768 << 20;  //will create 2 stripes for the whole file
 
 void printLocationOfTheChunksForAFile(string& fileName, long numBytes)
@@ -102,13 +106,15 @@ void generateData(char *buf, int numBytes);
 void createAndWriteFile(string& fname, int& fd)
 {
     int res;
+    //long stripeSize = 64<<20;
+    //long stripeSize = 16u<<20; ,ade it global
     // file handle should be used in subsequent I/O calls on
     // the file.
     //subrata start
     //if ((fd = gKfsClient->Create(tempFilename.c_str())) < 0) {
     //Please refer to line 308 of src/cc/libclient/KfsClient.h
     //if ((fd = gKfsClient->Create(tempFilename.c_str(),1,false,6,3,64<<10,2)) < 0) {
-    if ((fd = gKfsClient->Create(fname.c_str(),1,false,6,3,64<<20,3)) < 0) {  //subrata: KFS_STRIPED_FILE_TYPE_RS_JERASURE = 3 // force use of Jerasure library
+    if ((fd = gKfsClient->Create(fname.c_str(),1,false,6,3,stripeSize,3)) < 0) {  //subrata: KFS_STRIPED_FILE_TYPE_RS_JERASURE = 3 // force use of Jerasure library
         cout << "Create failed: " << KFS::ErrorCodeToStr(fd) << endl;
         exit(-1);
     }
@@ -168,6 +174,7 @@ main(int argc, char **argv)
 {
     string serverHost = "";
     int port = -1;
+    //long chunkSize = 64u << 20; //64MB!
     int numFiles = 1;
     bool help = false;
     char optchar;
@@ -180,6 +187,9 @@ main(int argc, char **argv)
             case 's':
                 serverHost = optarg;
                 break;
+            //case 'c':
+            //    chunkSize = strtoll(optarg, NULL, 10);;
+            //    break;
             case 'h':
                 help = true;
                 break;
@@ -194,7 +204,7 @@ main(int argc, char **argv)
     }
 
     if (help || (serverHost == "") || (port < 0)) {
-        cout << "Usage: " << argv[0] << " -s <meta server name> -p <port> -f <number-of-files-to-create> "
+        cout << "Usage: " << argv[0] << " -s <meta server name> -p <port> -c <chunk size> -f <number-of-files-to-create> "
              << endl;
         exit(0);
     }
@@ -204,6 +214,8 @@ main(int argc, char **argv)
     // the KFS namespace.
     //
 
+    //CHUNKSIZE = chunkSize;
+    //CHUNK_READ_SIZE = CHUNKSIZE; 
     gKfsClient = KFS::Connect(serverHost, port);
     if (!gKfsClient) {
         cerr << "kfs client failed to initialize...exiting" << "\n";

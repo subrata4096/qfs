@@ -180,7 +180,7 @@ struct DiskChunkInfo_t
     uint32_t unused;    // legacy padding
 } __attribute__ ((__packed__));
 
-BOOST_STATIC_ASSERT(sizeof(DiskChunkInfo_t) == 4400);
+//BOOST_STATIC_ASSERT(sizeof(DiskChunkInfo_t) == 4400); //subrata commenting this out. As this no longer holds if we change the chunk 
 BOOST_STATIC_ASSERT(sizeof(DiskChunkInfo_t) < KFS_CHUNK_HEADER_SIZE);
 BOOST_STATIC_ASSERT(
     sizeof(int64_t) + kKfsChunkFsIdPrefixLength <= CHUNK_META_MAX_FILENAME_LEN);
