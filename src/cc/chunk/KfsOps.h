@@ -1999,6 +1999,9 @@ struct SendChunkForDistributedRepairOp : public ReadOp {
     }
     virtual bool GetResponseContent(IOBuffer& iobuf, int len)
     {
+         char timeStr[50];
+          getTimeStrinMiliSecCostly(timeStr);
+       KFS_LOG_STREAM_DEBUG << "subrata :  time debug : SendChunkForDistributedRepairOp::GetResponseContent for stripe_id = " << this->stripe_identifier << " chunkId="<< this->chunkId << " of size= " << len << " and RECEIVING now = " << timeStr << KFS_LOG_EOM;
         const int nmv = dataBuf.Move(&iobuf, len);
         
        KFS_LOG_STREAM_DEBUG << "subrata : called SendChunkForDistributedRepairOp::GetResponseContent. done at = " << microseconds() << " Moved=" << nmv << "outof len=" << len << " iobuf="<< &iobuf << " dataBuf=" << &dataBuf << KFS_LOG_EOM;

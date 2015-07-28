@@ -65,7 +65,8 @@ KFS::KfsClient *gKfsClient;
 
 //subrata start
 
-long stripeSize = 16u <<  20;
+long stripeSize = 64u <<  20;
+//long stripeSize = 16u <<  20;
 //int numBytes = 2048;
 //int numBytes = 64 << 20;
 long numBytes = 6 * stripeSize; //will create one stripe  384 = 64 x 6  (each chunk is 64 MB)

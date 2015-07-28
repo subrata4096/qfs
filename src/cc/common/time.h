@@ -34,6 +34,7 @@ namespace KFS {
 
 extern int64_t microseconds(void);
 extern int64_t cputime(int64_t *user, int64_t *sys);
+extern void getTimeStrinMiliSecCostly(char* timeStr); //subrta
 
 } // namespace KFS
 

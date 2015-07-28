@@ -2171,7 +2171,9 @@ void ReadForPartialDecodeOp::Response(ostream &os)
        KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::Response Going to send back a chunkId="<< this->chunkId << " of size=" << bytesInBuff << " and cksum=" << cksum << KFS_LOG_EOM;
        ReadOp::Response(os);
        int64_t t2 = microseconds() - this->opIssueTime;
-       KFS_LOG_STREAM_DEBUG << "subrata :  time debug : ReadForPartialDecodeOp for stripe_id = " << this->stripe_identifier << " chunkId="<< this->chunkId << " of size= " << bytesInBuff << " took time = " << t2 << KFS_LOG_EOM;
+       char timeStr[50];
+       getTimeStrinMiliSecCostly(timeStr);
+       KFS_LOG_STREAM_DEBUG << "subrata :  time debug : ReadForPartialDecodeOp for stripe_id = " << this->stripe_identifier << " chunkId="<< this->chunkId << " of size= " << bytesInBuff << " took time = " << t2 << " and SENDING now = " << timeStr << KFS_LOG_EOM;
        //os.flush();
     }
     return;

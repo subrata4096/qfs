@@ -222,7 +222,7 @@ public:
     uint32_t        numReplicas:14; //!< Desired number of replicas for a file
     uint32_t        numRecoveryStripes:KFS_RECOVERY_STRIPE_COUNT_FIELD_BIT_WIDTH;
     uint32_t        numStripes:KFS_DATA_STRIPE_COUNT_FIELD_BIT_WIDTH;
-    uint32_t        stripeSize:27;
+    uint32_t        stripeSize:27;   //subrata : STRANGE!! TODO: Why ?? 27 ?? 
     int64_t         mtime; //!< modification time
     int64_t         ctime; //!< attribute change time
     int64_t         crtime; //!< creation time

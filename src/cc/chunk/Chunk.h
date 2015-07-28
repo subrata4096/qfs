@@ -61,6 +61,7 @@ using std::dec;
 
 /// We allow a chunk header upto 16K in size
 const size_t KFS_CHUNK_HEADER_SIZE = 16 << 10;
+//const size_t KFS_CHUNK_HEADER_SIZE = 32 << 10;   //subrata : STRANGE! TODO ? why this limit
 
 /// The max # of checksum blocks we have for a given chunk
 const uint32_t MAX_CHUNK_CHECKSUM_BLOCKS = CHUNKSIZE /  CHECKSUM_BLOCKSIZE;
