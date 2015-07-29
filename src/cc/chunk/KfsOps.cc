@@ -1613,10 +1613,13 @@ DistributedRepairChunkOp::Execute()
      
 
      SendChunkForDistributedRepairOp* chunkRepairRequestOp = new SendChunkForDistributedRepairOp();
+     chunkRepairRequestOp->missing_chunkId = this->chunkId; // the chunkID whos loss triggered this repair..
+     chunkRepairRequestOp->missing_chunkVersion = this->chunkVersion; // the chunkVersion whos loss triggered this repair..
      chunkRepairRequestOp->chunkId = requested_chunkId;
      chunkRepairRequestOp->chunkVersion = requested_chunkVersion;
      chunkRepairRequestOp->chunkSize = requested_chunkSize;
      chunkRepairRequestOp->stripe_identifier = this->stripe_identifier;
+     chunkRepairRequestOp->fileId = this->fid;
      chunkRepairRequestOp->temporal_time = requested_temporalTime;
      chunkRepairRequestOp->decoding_coefficient = requested_decodeCoeff;
      chunkRepairRequestOp->clnt = this;
@@ -1648,7 +1651,8 @@ DistributedRepairChunkOp::Execute()
 int
 DistributedRepairChunkOp::HandleDone(int code, void *data)
 {
-    KFS_LOG_STREAM_DEBUG << "subrata : DistributedRepairChunkOp::HandleDone   THIS SHOULD BE ONLY CALLED BY FINAL REPAIR CHUNK SERVER> ONLY!" << KFS_LOG_EOM; 
+    KFS_LOG_STREAM_DEBUG << "subrata : DistributedRepairChunkOp::HandleDone   THIS SHOULD BE ONLY CALLED BY FINAL REPAIR CHUNK SERVER> ONLY!" << KFS_LOG_EOM;
+
     // notify the owning object that the op finished
     if(clnt)
     {
@@ -1706,6 +1710,79 @@ void SendChunkForDistributedRepairOp::Response(ostream &os)
 }
 
 int
+SendChunkForDistributedRepairOp::HandleWriteDone()
+{
+         //we are done with the full replication. How do we inform the metaserver ??
+
+          if(clnt)
+          {
+             clnt->HandleEvent(EVENT_CMD_DONE, this);
+          }
+          clnt = NULL; //avoid calling it twice
+   
+         return 0;
+
+}
+
+int
+SendChunkForDistributedRepairOp::HandleWrite(int bytesInBuff)
+{
+           int64_t t1 = microseconds();
+
+           WriteOp theWriteOp(this->missing_chunkId, this->missing_chunkVersion);
+           theWriteOp.clnt = this;
+           theWriteOp.Reset();
+           theWriteOp.isFromReReplication = true;
+           theWriteOp.numBytes            = bytesInBuff;
+           theWriteOp.offset              = this->offset;
+           theWriteOp.dataBuf.Move(&(this->dataBuf), theWriteOp.numBytes);
+
+           DiskIo::FilePtr* diskFileHandle = NULL;
+           //assert(theWriteOp.diskIo);
+           //DiskIo::FilePtr diskFileHandle = (theWriteOp.diskIo)->GetFilePtr(); //does not work
+
+           int status = gChunkManager.AllocChunk(
+                                                       this->fileId,
+                                                       theWriteOp.chunkId,
+                                                       theWriteOp.chunkVersion,
+                                                       kKfsSTierUndef, //undef
+                                                       kKfsSTierUndef, //undef
+                                                       true, //kIsBeingReplicatedFlag
+                                                       0,
+                                                       false,  //kMustExistFlag
+                                                       0, // alloc op
+                                                       theWriteOp.chunkVersion, //target version. keeping it same
+                                                       diskFileHandle
+                                                       );
+
+           KFS_LOG_STREAM_DEBUG << "subrata : SendChunkForDistributedRepairOp  ALLOCATE stattus for chunkId = " << this->chunkId << " of stripe=" << this->stripe_identifier << " with data in buf="<< bytesInBuff << " is status = " << status <<  KFS_LOG_EOM;
+           
+           status = gChunkManager.WriteChunk(&theWriteOp, diskFileHandle /*,&mFileHandle*/);
+          
+           //SET_HANDLER(this, &SendChunkForDistributedRepairOp::HandleWriteDone);
+           //const bool kStableFlag = true;
+           //status  = gChunkManager.ChangeChunkVers(this->missing_chunkId, this->missing_chunkVersion, kStableFlag, this, diskFileHandle);
+   
+           //KFS::ChunkInfoHandle* cih;
+           //int ret = gChunkManager.GetChunkInfoHandle(this->missing_chunkId,  &cih);  
+           //assert(cih);
+           //cih->SetBeingReplicated(false); //repair done
+
+           gChunkManager.ReplicationDone(this->missing_chunkId, status, diskFileHandle);
+
+           std::string statusStr;
+
+           status  = gChunkManager.MakeChunkStable(this->missing_chunkId, this->missing_chunkVersion, false, this, statusStr);
+
+           t1 = microseconds() - t1;
+
+           KFS_LOG_STREAM_DEBUG << "subrata : SendChunkForDistributedRepairOp  WRITE took = " << t1 << " stattus for chunkId = " << this->chunkId << " of stripe=" << this->stripe_identifier << " with data in buf="<< bytesInBuff << " is status = " << status <<  "  " << statusStr << KFS_LOG_EOM;
+
+           return status;
+
+}
+
+int
 SendChunkForDistributedRepairOp::HandleDone(int code, void *data)
 {
     // notify the owning object that the op finished
@@ -1759,7 +1836,11 @@ SendChunkForDistributedRepairOp::HandleDone(int code, void *data)
         if(lowestTemporalTime == -1) //all expected downstream operations completed
         {
            KFS_LOG_STREAM_DEBUG << "subrata : SendChunkForDistributedRepairOp  FINAL DESTINATION got ALL THE REPAIR data for stripe=" << this->stripe_identifier << " current data in buf="<< bytesInBuff << KFS_LOG_EOM; 
-           
+          
+            
+           //now try to write this chunk on the disk...
+           //write stuff START
+           this->HandleWrite(bytesInBuff);
 
           //we are done with the full replication. How do we inform the metaserver ??
           
@@ -1767,6 +1848,7 @@ SendChunkForDistributedRepairOp::HandleDone(int code, void *data)
           {
              clnt->HandleEvent(EVENT_CMD_DONE, this);
           }
+          clnt = NULL; //avoid calling it twice
           
         }
     }

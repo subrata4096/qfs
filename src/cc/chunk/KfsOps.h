@@ -921,17 +921,22 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
       SyncReplicationAccess syncReplicationAccess;
       int chunkAccessLength;
       int contentLength;
+      //kfsFileId_t fileId; //the file id for a chunk
+
+      //WriteOp* mWriteOp;  //will handle the writing of final chunk
 
      DistributedRepairChunkOp(kfsSeq_t s = 0) :
         ReplicateChunkOp(CMD_REPLICATE_DISTRIBUTED_CHUNK, s),
         syncReplicationAccess(),
         chunkAccessLength(0),
         contentLength(0)
+        //fileId(0)
         {
            stripe_identifier = -1;
            decoding_coefficient = -1; 
            theSequenceString = "EMPTY" ;
            newChunkLocation = "";
+          // mWriteOp = NULL;
            SET_HANDLER(this, &DistributedRepairChunkOp::HandleDone);
         };
 
@@ -948,6 +953,7 @@ struct DistributedRepairChunkOp : public ReplicateChunkOp {
      template<typename T> static T& ParserDef(T& parser)
      {
         return ReplicateChunkOp::ParserDef(parser)
+        //.Def("File-Id",   &DistributedRepairChunkOp::fileId,  kfsFileId_t(0))   
         .Def("STRIPE-IDENTIFIER",   &DistributedRepairChunkOp::stripe_identifier,  long(-1))
         .Def("Decoding-coefficient",   &DistributedRepairChunkOp::decoding_coefficient,  int(-1))
         .Def("Operation-sequence-list",   &DistributedRepairChunkOp::theSequenceString,  std::string("STILL EMPTY"))
@@ -1953,7 +1959,9 @@ struct SendChunkForDistributedRepairOp : public ReadOp {
     //int64_t      numBytesScrubbed;
     //const char*  requestChunkAccess;
     //enum { kChunkReadSize = 1 << 20, kChunkMetaReadSize = 16 << 10 };
-    //kfsChunkId_t chunkid;
+    kfsChunkId_t missing_chunkId; 
+    int64_t      missing_chunkVersion; 
+    kfsFileId_t fileId; //the file id for a chunk
     long stripe_identifier;
     int temporal_time;
     int decoding_coefficient;
@@ -1969,7 +1977,9 @@ struct SendChunkForDistributedRepairOp : public ReadOp {
           //readOp(0),
           //numBytesScrubbed(0),
           //requestChunkAccess(0),
-          //chunkid(-1),
+          missing_chunkId(-1),
+          missing_chunkVersion(-1),
+          fileId(0),
           stripe_identifier(-1),
           temporal_time(-1),
           decoding_coefficient(-1)
@@ -1995,6 +2005,7 @@ struct SendChunkForDistributedRepairOp : public ReadOp {
             " seq: "          << seq <<
             " chunkid: "      << chunkId <<
             " chunkversion: " << chunkVersion
+            //" fileId: " << fileId  
         ;
     }
     virtual bool GetResponseContent(IOBuffer& iobuf, int len)
@@ -2017,6 +2028,7 @@ struct SendChunkForDistributedRepairOp : public ReadOp {
     template<typename T> static T& ParserDef(T& parser)
      {
         return ReadOp::ParserDef(parser)
+        //.Def("File-Id",   &SendChunkForDistributedRepairOp::fileId,  kfsFileId_t(0))   //will set externally
         .Def("STRIPE-IDENTIFIER",   &SendChunkForDistributedRepairOp::stripe_identifier,  long(-1))
         .Def("Decoding-coefficient",   &SendChunkForDistributedRepairOp::decoding_coefficient,  int(-1))
         .Def("TEMPORAL-TIME",   &SendChunkForDistributedRepairOp::temporal_time,  int(0))
@@ -2025,6 +2037,11 @@ struct SendChunkForDistributedRepairOp : public ReadOp {
     }
     
     virtual int HandleDone(int code, void *data);
+  
+    virtual int HandleWriteDone();
+
+    virtual int HandleWrite(int bytesInBuff);
+
 
 };
 

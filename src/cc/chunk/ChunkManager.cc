@@ -3544,6 +3544,49 @@ ChunkManager::ReplicationDone(kfsChunkId_t chunkId, int status,
 }
 
 void
+ChunkManager::ReplicationDone(kfsChunkId_t chunkId, int status,
+    const DiskIo::FilePtr* filePtr)
+{
+    ChunkInfoHandle** const ci = mChunkTable.Find(chunkId);
+    if (! ci) {
+        return;
+    }
+    ChunkInfoHandle* const cih = *ci;
+    if(filePtr)
+    {
+      if (! cih->IsBeingReplicated() || *filePtr != cih->dataFH) {
+        KFS_LOG_STREAM_DEBUG <<
+            "irnored stale replication completion for"
+                " chunk: "    << chunkId <<
+                " status: "   << status <<
+                " fileH: "    << (const void*)cih->dataFH.get() <<
+                " "           << (const void*)filePtr->get() <<
+        KFS_LOG_EOM;
+        return;
+      }
+   }
+
+    KFS_LOG_STREAM_DEBUG <<
+        "Replication for chunk: " << chunkId <<
+        " status: " << status <<
+        " " << MakeChunkPathname(cih) <<
+    KFS_LOG_EOM;
+    if (status < 0) {
+        const bool forceDeleteFlag = true;
+        StaleChunk(cih, forceDeleteFlag);
+        return;
+    }
+
+    cih->SetBeingReplicated(false);
+    LruUpdate(*cih); // Add it to lru.
+    if (cih->IsFileOpen() && cih->IsStable() &&
+            ! cih->IsFileInUse() && ! cih->SyncMeta()) {
+        Release(*cih);
+    }
+}
+
+
+void
 ChunkManager::Start()
 {
     globalNetManager().RegisterTimeoutHandler(this);

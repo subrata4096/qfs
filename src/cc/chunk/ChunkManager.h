@@ -295,6 +295,8 @@ public:
     bool ReadChunkDone(ReadOp *op);
     void ReplicationDone(kfsChunkId_t chunkId, int status,
         const DiskIo::FilePtr& filePtr);
+    void ReplicationDone(kfsChunkId_t chunkId, int status, const DiskIo::FilePtr* filePtr);
+
     /// Determine the size of a chunk.
     bool ChunkSize(SizeOp* op);
 
