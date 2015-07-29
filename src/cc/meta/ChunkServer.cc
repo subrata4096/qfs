@@ -2013,6 +2013,8 @@ ChunkServer::ReplicateChunk(fid_t fid, chunkId_t chunkId,
     kfsSTier_t minSTier, kfsSTier_t maxSTier,
     MetaChunkReplicate::FileRecoveryInFlightCount::iterator it)
 {
+
+#if 0 //subrata add
     MetaChunkReplicate* const r = new MetaChunkReplicate(
         NextSeq(), shared_from_this(), fid, chunkId,
         dataServer->GetServerLocation(), dataServer, minSTier, maxSTier, it);
@@ -2091,6 +2093,7 @@ ChunkServer::ReplicateChunk(fid_t fid, chunkId_t chunkId,
     NewChunkInTier(minSTier);
     Enqueue(r, sReplicationTimeout);
     return 0;
+#endif //subrata end
 }
 
 void

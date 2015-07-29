@@ -8220,6 +8220,8 @@ int LayoutManager::scheduleRepilcationNew(
      ChunkServerPtr theChosenServer)
  {
           //subrata: I am writing this function for testing
+#if 0
+
 
 	 FileRecoveryInFlightCount::iterator recovIt =
               mFileRecoveryInFlightCount.end();
@@ -8248,6 +8250,7 @@ int LayoutManager::scheduleRepilcationNew(
               numDone++;
           }
           return numDone;
+#endif
           //subrata: end function
 }
 
@@ -8786,6 +8789,7 @@ LayoutManager::ReplicateChunk(
    // ********************************
 
     //subrata end
+#if 0 //subrata
     const MetaFattr* const fa       = clli.GetFattr();
     kfsSTier_t             minSTier = fa->minSTier;
     kfsSTier_t             maxSTier = fa->maxSTier;
@@ -8893,6 +8897,7 @@ LayoutManager::ReplicateChunk(
     //subrata end
     //return ReplicateChunk(clli, extraReplicas, candidates, recoveryInfo,
        // tiers, maxSTier);
+#endif
 }
 
 int
@@ -8905,6 +8910,8 @@ LayoutManager::ReplicateChunk(
     kfsSTier_t                    maxSTier,
     const char*                   reasonMsg)
 {
+int numDone = 0;
+#if 0
     //subrata: so basically if we pass this routine only one valid "candidates" as distination, it will work
     // prefer a server that is being retired to the other nodes as
     // the source of the chunk replication
@@ -8916,7 +8923,7 @@ LayoutManager::ReplicateChunk(
         bind(&ChunkServer::IsEvacuationScheduled, _1, clli.GetChunkId())   //subrata: get list of all servers that are being evacuated and this chunk is hosted on those
     );
     vector<kfsSTier_t>::const_iterator ti = tiers.begin();
-    int numDone = 0;
+    //int numDone = 0;
     for (Servers::const_iterator it = candidates.begin();
             numDone < extraReplicas && it != candidates.end();
             ++it) {
@@ -9018,6 +9025,7 @@ LayoutManager::ReplicateChunk(
             numDone++;
         }
     }
+#endif
     return numDone;
 }
 
@@ -9723,6 +9731,7 @@ LayoutManager::ChunkReplicationChecker()
 void
 LayoutManager::ChunkReplicationDone(MetaChunkReplicate* req)
 {
+#if 0 //subrata comment
     const bool versChangeDoneFlag = req->versChange != 0;
     assert(! req->suspended || versChangeDoneFlag);
     if (versChangeDoneFlag) {
@@ -9928,6 +9937,7 @@ LayoutManager::ChunkReplicationDone(MetaChunkReplicate* req)
     // above. Let the normal path figure out if the any further actions are
     // needed.
     RemoveRetiring(*ci, servers, ci->GetFattr()->numReplicas);
+#endif //subrata end
 }
 
 void
@@ -9982,6 +9992,7 @@ typedef vector<InvalidChunkInfo, StdAllocator<InvalidChunkInfo> > InvalidChunks;
 void
 LayoutManager::ProcessInvalidStripes(MetaChunkReplicate& req)
 {
+#if 0 //subrata comment
     if (req.invalidStripes.empty()) {
         return;
     }
@@ -10144,6 +10155,7 @@ LayoutManager::ProcessInvalidStripes(MetaChunkReplicate& req)
         alloc.pathname.Copy(kWormFakeName, strlen(kWormFakeName));
         submit_request(&alloc);
     }
+#endif //subrata
 }
 
 //
