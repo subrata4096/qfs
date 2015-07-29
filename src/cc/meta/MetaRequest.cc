@@ -5362,7 +5362,7 @@ MetaDistributedRepairChunk::handleReply(const Properties& prop)
     const chunkId_t receivedChunkId(prop.getValue("Chunk-handle", 0));
     const seq_t receivedChunkVersion(prop.getValue("Chunk-version", seq_t(0)));
 
-    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply (" << this << ") for fid= " << fid << " for stripe_identifier = " << stripe_identifier << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata: MetaDistributedRepairChunk::handleReply (" << this << ") for fid= " << fid << " for stripe_identifier = " << stripe_identifier << KFS_LOG_EOM;
     assert(receivedStripeIdentifier == this->stripe_identifier);
     assert(receivedChunkId == this->chunkId);
 
@@ -5371,7 +5371,7 @@ MetaDistributedRepairChunk::handleReply(const Properties& prop)
     int64_t repairDuration = now - this->requestTime;
 
     //KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << receivedFileId << " REPAIR took time = " << repairDuration << KFS_LOG_EOM;
-    KFS_LOG_STREAM_DEBUG << "subrata: MetaChunkReplicate::handleReply for fid= " << fid << " for stripe_identifier = " << stripe_identifier << " chunkId = " << chunkId <<" REPAIR took time = " << repairDuration << " request time = " << this->requestTime << "reply time = " << now << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata: MetaDistributedRepairChunk::handleReply for fid= " << fid << " for stripe_identifier = " << stripe_identifier << " chunkId = " << chunkId <<" REPAIR took time = " << repairDuration << " request time = " << this->requestTime << "reply time = " << now << KFS_LOG_EOM;
 }
 
 //subrata end
