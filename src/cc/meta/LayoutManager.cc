@@ -8764,7 +8764,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
       
       
       //subrata printing the content of CacheMap that the meta server keeps based on the information provided by the chunkservers, piggybacked with the heartbeat message
-      printCacheServerMap();
+      //printCacheServerMap();
 
  
        std::stringstream ss;

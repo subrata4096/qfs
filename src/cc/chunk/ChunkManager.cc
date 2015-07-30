@@ -903,7 +903,7 @@ void ChunkManager::generateListOfChangeInChunkLRUCache(std::string & outputStr)
     //return;
      //following two are for sending "delta" change to the meta server
 
-    chunkLRUCache.printChunkCacheMap();
+    //chunkLRUCache.printChunkCacheMap();
      
     std::stringstream ss;
     outputStr = "ChunkLRUDelta: ";
