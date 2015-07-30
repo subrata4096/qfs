@@ -2165,9 +2165,11 @@ protected:
 
    int GetPartialDecodingInformation(long stripe_identifier, int numStripes, int numRecoveryStripes, int missingIndex, std::map<int,int>& decodingCoefficient);
    
-   int PopulateDistributedRepairOperationTable(chunkId_t chunkId, std::map<std::string, std::map<int,PartialDecodingInfo> >& operationMapForChunkServers,std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer);
+   int PopulateDistributedRepairOperationTable(chunkId_t chunkId, std::list<chunkId_t>& listOfRelatedChunkIds, std::map<std::string, std::map<int,PartialDecodingInfo> >& operationMapForChunkServers,std::map<int, ChunkServerPtr>& eightRemainingSourceServeres, ChunkServerPtr destinationServer);
 
-   void SelectSetOfSourceServers(int serverCountNeeded, std::map<int, ChunkServerPtr>& availableSourceServeres, std::map<ChunkServerPtr, bool>& selectedSources); 
+   void getServersWhichHaveCache(std::list<chunkId_t>& listOfRelatedChunkIds, std::map<std::string, bool>& haveCache);
+
+   void SelectSetOfSourceServers(std::list<chunkId_t>& listOfRelatedChunkIds, std::map<std::string, bool>& haveCache, int serverCountNeeded, std::map<int, ChunkServerPtr>& availableSourceServeres, std::map<ChunkServerPtr, bool>& selectedSources); 
     //subrata end
 
 

@@ -1689,7 +1689,8 @@ ChunkServer::HandleReply(IOBuffer* iobuf, int msgLen)
     }
     
     std::string lruCacheUpdate = prop.getValue("ChunkLRUDelta", std::string(""));
-    std::string serverName(this->GetServerName());
+    //std::string serverName(this->GetServerName());
+    std::string serverName(this->GetHostPortStr());
     gLayoutManager.parseAndUpdateCacheServerMap(serverName, lruCacheUpdate);
    
     op->resume();
