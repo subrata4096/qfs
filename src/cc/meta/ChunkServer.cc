@@ -313,6 +313,7 @@ ChunkServer::Create(const NetConnectionPtr &conn)
     if (! conn || ! conn->IsGood()) {
         return 0;
     }
+    KFS_LOG_STREAM_ERROR << "subrata : creating a new ChunkServer instance at MetaServer : for " << conn->GetPeerName() <<  KFS_LOG_EOM;
     if (sMaxChunkServerCount <= sChunkServerCount) {
         KFS_LOG_STREAM_ERROR << conn->GetPeerName() <<
             " chunk servers: "            << sChunkServerCount <<
