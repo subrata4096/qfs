@@ -264,6 +264,10 @@ public:
         abort();
     }
 
+    //static void serialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, int* erasures);
+    //static void partialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, int* erasures, int* survivors, int numOfSurvivors);
+    //static void comparePartialVSFullDecoding_test();
+
     enum { kAlign = 16 };
     BOOST_STATIC_ASSERT(
         KFS_STRIPE_ALIGNMENT % kAlign == 0);
@@ -329,36 +333,62 @@ void generateData(char *buf, int numBytes)
 }
 
 /*static*/
-void RSStriper::doEncoding()
-{
-}
-/*static*/
-void RSStriper::partialDecode_test()
+void RSStriper::partialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, int* erasures, int* survivors, int numOfSurvivors)
 {
     std::string outMsg;
-    Decoder* decoder = ecm->GetDecoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
+    ECMethod::Decoder* decoder = ecm->GetDecoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
 
-    decoder->GetDecodingCoefficients(int inStripeCount, int inRecoveryStripeCount, int* survivors, int lost_device_id, int* coefficients)
+    int lost_device_id = erasures[0];
+    int coefficients[numOfSurvivors];
+
+
+    decoder->GetDecodingCoefficients(numData, numParity, survivors, lost_device_id, coefficients);
    
+
+   int theW = numData + numParity;
+        if (theW <= (int32_t(1) << 8)) {
+            theW = 8;
+        } else if (theW <= (int32_t(1) << 16)) {
+            theW = 16;
+        } else {
+            theW = 32;
+        }
+
+   int multCoeff[numOfSurvivors];
+   int theRet = KFS::client::ECMethod::Jerasure_Multiply(theW, chunkSize, multCoeff, tempDecodingBufPtr[0], outputDecodedPtr);
+
     
 }
 /*static*/
-void RSStriper::serialDecode_test()
+void RSStriper::serialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, int* erasures)
 {
     std::string outMsg;
-    Decoder* decoder = ecm->GetDecoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
+    ECMethod::Decoder* decoder = ecm->GetDecoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
+    if(decoder)
+    {
+         decoder->Decode(numData,numParity,chunkSize, inBuffersPtr, erasures);
+    }
+    else
+    {
+        KFS_LOG_STREAM_ERROR << "Subrata : coud not find decoder pointer" << KFS_LOG_EOM;
+    }
 
 }
 void RSStriper::comparePartialVSFullDecoding_test(int chunkSize, int numData, int numParity, int w)
 {
     int totalDataSize = chunkSize * numData;
 
-    ECMethod* ecm = QCECMethodJerasure::GetMethod();
+    KFS::client::ECMethod* ecm = QCECMethodJerasure::GetMethod();
 
     std::string outMsg;
-    Encoder* encoder = ecm->GetEncoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
 
-    char** dataBufs = new char[numData];
+    ECMethod::Encoder* encoder = ecm->GetEncoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
+    
+    int totalNumOfChunks = numData + numParity;
+
+    char** dataBufs = new char[totalNumOfChunks];
+    memset(dataBufs, 0, totalNumOfChunks);
+
     for(int i=0; i < numData; i++)
     {
       dataBufs[i] = new char[chunkSize];
@@ -369,9 +399,31 @@ void RSStriper::comparePartialVSFullDecoding_test(int chunkSize, int numData, in
     encoder->Encode(numData, numParity, chunkSize, dataBufs); 
      
 
-     RSStriper::doEncoding();
-     RSStriper::serialDecode_test();
-     RSStriper::partialDecode_test();
+     int numberOfFailures = 1;
+     int lost_device_id = 2;
+    
+     int numberOfSurvivors = totalNumOfChunks - numberOfFailures; 
+     int survivors[numberOfSurvivors];
+     int erasures[numberOfFailures];
+      
+     int indexArrSurvivor = 0;
+     int indexArrErasure = 0;
+     
+     for(int deviceId=0; deviceId <  totalNumOfChunks; deviceId++)
+     {
+         if(deviceId == lost_device_id)
+         {
+            erasures[indexArrErasure] = deviceId;
+            indexArrErasure++;
+            continue;
+         }
+         survivors[indexArrSurvivor] = deviceId;
+         indexArrSurvivor++;
+     }
+     
+
+     RSStriper::serialDecode_test(ecm, chunkSize, numData, numParity, erasures);
+     RSStriper::partialDecode_test(chunkSize,numData, numParity, erasures, survivors, numberOfSurvivors);
 }
 //subrata end
 

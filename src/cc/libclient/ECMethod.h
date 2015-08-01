@@ -136,6 +136,7 @@ protected:                   //subrata
         int     inStripeCount,
         int     inRecoveryStripeCount,
         string* outErrMsgPtr) = 0;
+public:                  //subrata
     virtual Encoder* GetEncoder(
         int     inMethodType,
         int     inStripeCount,

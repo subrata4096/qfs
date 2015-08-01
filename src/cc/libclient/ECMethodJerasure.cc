@@ -84,6 +84,7 @@ protected:
         QCRTASSERT(inMethodType == KFS_STRIPED_FILE_TYPE_RS_JERASURE);
         Cleanup();
     }
+public:
     virtual Encoder* GetEncoder(
         int     inMethodType,
         int     inStripeCount,
@@ -110,6 +111,7 @@ protected:
             outErrMsgPtr
         );
     }
+protected:
     virtual bool Validate(
         int     inMethodType,
         int     inStripeCount,
