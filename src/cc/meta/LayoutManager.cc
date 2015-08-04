@@ -8888,7 +8888,7 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
                   }
                   const MetaChunkInfo* const chunk = ci->GetChunkInfo();
 
-                  if(srvs.begin() == srvs.end()
+                  if(srvs.begin() == srvs.end())
                   {
                       KFS_LOG_STREAM_ERROR << "No Server location found fo this chunkId = " << srcChunkId << KFS_LOG_EOM;  
                       continue;
