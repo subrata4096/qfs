@@ -8881,7 +8881,19 @@ ChunkServerPtr LayoutManager::CoordinateTheReplicationProcess(CSMap::Entry& c, c
 
                   CSMap::Entry* const ci = mChunkToServerMap.Find(srcChunkId);
 
+                  if(!ci)
+                  {
+                      KFS_LOG_STREAM_ERROR << "Why chunk Entry not found ?? for chunkId = " << srcChunkId << KFS_LOG_EOM;  
+                      continue;
+                  }
                   const MetaChunkInfo* const chunk = ci->GetChunkInfo();
+
+                  if(srvs.begin() == srvs.end()
+                  {
+                      KFS_LOG_STREAM_ERROR << "No Server location found fo this chunkId = " << srcChunkId << KFS_LOG_EOM;  
+                      continue;
+ 
+                  }
 
                   Servers::iterator servIterStart = srvs.begin();
                   ChunkServerPtr sourceChunkServer = *servIterStart;
