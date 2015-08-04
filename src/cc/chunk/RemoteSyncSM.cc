@@ -224,7 +224,8 @@ private:
 
 RemoteSyncSM::Auth* RemoteSyncSM::sAuthPtr                  = 0;
 bool                RemoteSyncSM::sTraceRequestResponseFlag = false;
-int                 RemoteSyncSM::sOpResponseTimeoutSec     = 5 * 60;
+//int                 RemoteSyncSM::sOpResponseTimeoutSec     = 5 * 60;
+int                 RemoteSyncSM::sOpResponseTimeoutSec     = 60 * 60; //will not timeout before one hour : subrata
 int                 RemoteSyncSM::sRemoteSyncCount          = 0;
 
 const int kMaxCmdHeaderLength = 2 << 10;

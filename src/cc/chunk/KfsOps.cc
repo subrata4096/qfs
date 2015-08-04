@@ -893,7 +893,7 @@ ReadOp::HandleDone(int code, void *data)
              return 0; // Retry.
           }
         }
-        KFS_LOG_STREAM_DEBUG << "subrata :  ReadOp::HandleDone :  we are trying to send BytesConsumable=" << numBytesIO <<  KFS_LOG_EOM;
+        KFS_LOG_STREAM_DEBUG << "subrata :  ReadOp::HandleDone :  we are trying to send chunkId = " << chunkId << " BytesConsumable=" << numBytesIO <<  KFS_LOG_EOM;
         if (status == 0) {
             // checksum verified
             status = numBytesIO;
@@ -1651,7 +1651,7 @@ DistributedRepairChunkOp::Execute()
 int
 DistributedRepairChunkOp::HandleDone(int code, void *data)
 {
-    KFS_LOG_STREAM_DEBUG << "subrata : DistributedRepairChunkOp::HandleDone   THIS SHOULD BE ONLY CALLED BY FINAL REPAIR CHUNK SERVER> ONLY!" << KFS_LOG_EOM;
+    KFS_LOG_STREAM_DEBUG << "subrata : DistributedRepairChunkOp::HandleDone   THIS SHOULD BE ONLY CALLED BY FINAL REPAIR CHUNK SERVER> ONLY!" << "ref: stripe_id = " << this->stripe_identifier << " chunkId = " << chunkId << KFS_LOG_EOM;
 
     // notify the owning object that the op finished
     if(clnt)
@@ -1892,7 +1892,7 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
                int numBytesConsumable = ((*issuedOpBegin)->dataBuf).BytesConsumable();
                //uint32_t cksum = ComputeBlockChecksum(&((*issuedOpBegin)->dataBuf), (size_t)numBytesConsumable);
       	       //KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation got from peer " << numBytesConsumable << " bytes and cksum=" << cksum <<  KFS_LOG_EOM;
-      	       KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation got from peer " << numBytesConsumable <<  KFS_LOG_EOM;
+      	       KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation got from peer " << numBytesConsumable << "ref: stripe_id = " << this->stripe_identifier << " chunkId = " << chunkId << KFS_LOG_EOM;
                if(numBytesConsumable <= 0)
                {
                    allBuffersReady = false;
@@ -1903,7 +1903,7 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
            if(false == allBuffersReady)
            {
                //not all buffers are ready. That means we did not get back chunk response from the peers. Have to wait. How ? 
-      	       KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation buffers NOT ready" <<  KFS_LOG_EOM;
+      	       KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation buffers NOT ready" << "ref: stripe_id = " << this->stripe_identifier << " chunkId = " << chunkId  <<  KFS_LOG_EOM;
                return false; //in case operation was not drained 
            }
            else
@@ -2017,7 +2017,7 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
                //send the calculated result to upstream
                numBytesIO = dataBuf.BytesConsumable();
                uint32_t cksum = ComputeBlockChecksum(&(this->dataBuf), (size_t)numBytesIO);
-      	    KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation found ALL buffers from multiple issued, total="<< numBytesIO << " and cksum=" << cksum <<  KFS_LOG_EOM;
+      	    KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation found ALL buffers from multiple issued, total="<< numBytesIO << " and cksum=" << cksum << "ref: stripe_id = " << this->stripe_identifier << " chunkId = " << chunkId << KFS_LOG_EOM;
 
 
               if (numBytesIO <= 0) 
@@ -2113,7 +2113,7 @@ bool ReadForPartialDecodeOp::XORFromAllTheIssuedOperation()
 
    
       }
-      KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation found ALL buffers" <<  KFS_LOG_EOM;
+      KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::XORFromAllTheIssuedOperation found ALL buffers" << "ref: stripe_id = " << this->stripe_identifier << " chunkId = " << chunkId <<  KFS_LOG_EOM;
       this->isReadyToReturnForPartialDecoding = true; 
       
       //It got all the downstream data it was expecting... deleted the entry for downstream op
@@ -2247,7 +2247,7 @@ void ReadForPartialDecodeOp::Execute()
 
 void ReadForPartialDecodeOp::Request(ostream &os)
 {
-    KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::::Request" << KFS_LOG_EOM;
+    //KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::::Request" << KFS_LOG_EOM;
     return;
 }
 
@@ -2257,7 +2257,7 @@ void ReadForPartialDecodeOp::Response(ostream &os)
     {
        int bytesInBuff = (this->dataBuf).BytesConsumable();
        uint32_t cksum = ComputeBlockChecksum(&(this->dataBuf), (size_t)bytesInBuff);
-       KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::Response Going to send back a chunkId="<< this->chunkId << " of size=" << bytesInBuff << " and cksum=" << cksum << KFS_LOG_EOM;
+       KFS_LOG_STREAM_DEBUG << "subrata :  ReadForPartialDecodeOp::Response Going to send back stripe_id = " << this->stripe_identifier << " chunkId="<< this->chunkId << " of size=" << bytesInBuff << " and cksum=" << cksum << KFS_LOG_EOM;
        ReadOp::Response(os);
        int64_t t2 = microseconds() - this->opIssueTime;
        char timeStr[50];
