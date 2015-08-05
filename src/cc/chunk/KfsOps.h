@@ -1909,6 +1909,20 @@ struct ReadForPartialDecodeOp : public ReadOp {
     virtual void Request(ostream &os);
     virtual void Response(ostream &os);
     virtual int HandleDone(int code, void* data);
+
+    virtual bool IsChunkReadOp(int64_t& outNumBytes, kfsChunkId_t& outChunkId)
+    {
+          outChunkId = chunkId;
+          if (numBytes > 0) {
+            outNumBytes = (int64_t)((numBytes + CHECKSUM_BLOCKSIZE - 1) /
+            CHECKSUM_BLOCKSIZE * CHECKSUM_BLOCKSIZE);
+          } else {
+            outNumBytes = numBytes;
+          }
+ 
+       return true;
+    }
+
      virtual bool GetResponseContent(IOBuffer& iobuf, int len)
     {
         KFS_LOG_STREAM_DEBUG << "subrata : called ReadForPartialDecodeOp::GetResponseContent. This os CORRECT virtual function? " << KFS_LOG_EOM;
