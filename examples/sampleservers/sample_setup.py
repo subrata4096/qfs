@@ -521,6 +521,8 @@ def setup_config_files(config, authFlag):
     print >> metaFile, 'metaServer.recoveryInterval = 1'
     #subrata: add start
     print >> metaFile, 'metaServer.serverDownReplicationDelay = 15'
+    print >> metaFile, 'metaServer.chunkServer.replicationTimeout = 3600'
+    print >> metaFile, 'metaServer.chunkServer.requestTimeout = 3600'
     #subrata: add end
     print >> metaFile, 'metaServer.msgLogWriter.logLevel = DEBUG'
     print >> metaFile, 'metaServer.msgLogWriter.maxLogFileSize = 1e6'
