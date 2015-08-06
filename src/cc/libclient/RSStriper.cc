@@ -264,9 +264,9 @@ public:
         abort();
     }
 
-    //static void serialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, int* erasures);
-    //static void partialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, int* erasures, int* survivors, int numOfSurvivors);
-    //static void comparePartialVSFullDecoding_test();
+    static void serialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, void** dataBufs, int* erasures, int lost_device_id);
+    static void partialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, char** dataBufs, char** tempdataBufs, int* erasures, int* survivors, int numOfSurvivors, int lost_device_id, bool simulateParallelDecoding);
+    //static void comparePartialVSFullDecoding_test(int chunkSize, int numData, int numParity);
 
     enum { kAlign = 16 };
     BOOST_STATIC_ASSERT(
@@ -320,7 +320,7 @@ protected:
     }
 };
 
-#if 0
+//#if 0
 //subrata add
 void generateData(char *buf, int numBytes)
 {
@@ -333,12 +333,16 @@ void generateData(char *buf, int numBytes)
 }
 
 /*static*/
-void RSStriper::partialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, int* erasures, int* survivors, int numOfSurvivors)
+void RSStriper::partialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, char** dataBufs, char** tempdataBufs, int* erasures, int* survivors, int numOfSurvivors, int lost_device_id, bool simulateParallelDecoding)
 {
     std::string outMsg;
     ECMethod::Decoder* decoder = ecm->GetDecoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
+    if(!decoder)
+    {
+        KFS_LOG_STREAM_ERROR << "Subrata : coud not find decoder pointer" << KFS_LOG_EOM;
+    }
 
-    int lost_device_id = erasures[0];
+    //int lost_device_id = erasures[0];
     int coefficients[numOfSurvivors];
 
 
@@ -354,31 +358,52 @@ void RSStriper::partialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, in
             theW = 32;
         }
 
-   int multCoeff[numOfSurvivors];
-   int theRet = KFS::client::ECMethod::Jerasure_Multiply(theW, chunkSize, multCoeff, tempDecodingBufPtr[0], outputDecodedPtr);
 
+   char* chunkBeingRepaired = dataBufs[lost_device_id];
+
+   int numberOfDecodings = numData;
+   if(simulateParallelDecoding)
+   {
+       numberOfDecodings = 1;
+   }
+
+   for(int i = 0 ; i < numberOfDecodings ; i ++ )
+   {
+        int multCoeff = coefficients[i];
+        
+        int theRet = KFS::client::ECMethod::Jerasure_Multiply(theW, chunkSize, multCoeff, dataBufs[i], tempdataBufs[i]);
+   }
+   for(int i = 0 ; i < numberOfDecodings ; i ++ )
+   {
+        int theRet = KFS::client::ECMethod::Jerasure_Add(chunkSize, tempdataBufs[i], chunkBeingRepaired);
+   }
     
 }
 /*static*/
-void RSStriper::serialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, int* erasures)
+void RSStriper::serialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, int numData, int numParity, void** dataBufs /*data buffers*/, int* erasures, int lost_device_id)
 {
     std::string outMsg;
     ECMethod::Decoder* decoder = ecm->GetDecoder(KFS_STRIPED_FILE_TYPE_RS_JERASURE, numData, numParity, & outMsg);//will call only once.. will not call again. do not want to generate matrix again and again
-    if(decoder)
-    {
-         decoder->Decode(numData,numParity,chunkSize, inBuffersPtr, erasures);
-    }
-    else
+    if(!decoder)
     {
         KFS_LOG_STREAM_ERROR << "Subrata : coud not find decoder pointer" << KFS_LOG_EOM;
     }
 
+    decoder->Decode(numData,numParity,chunkSize, dataBufs, erasures);
+
 }
-void RSStriper::comparePartialVSFullDecoding_test(int chunkSize, int numData, int numParity, int w)
+
+void runDecodingAlgo(int chunkSize, int numData, int numParity, int64_t& duration,bool isPartial, bool simulateParallelDecoding)
 {
+
     int totalDataSize = chunkSize * numData;
 
-    KFS::client::ECMethod* ecm = QCECMethodJerasure::GetMethod();
+    //KFS::client::ECMethod* ecm = KFS::client::QCECMethodJerasure::GetMethod();
+
+    //std::string outErrMsg;
+
+    KFS::client::ECMethod* ecm = KFS::client::ECMethod::Get_QCECMethodJerasure_Ptr();
+    ecm->Register(3);
 
     std::string outMsg;
 
@@ -386,21 +411,35 @@ void RSStriper::comparePartialVSFullDecoding_test(int chunkSize, int numData, in
     
     int totalNumOfChunks = numData + numParity;
 
-    char** dataBufs = new char[totalNumOfChunks];
+    char** dataBufs = new char*[totalNumOfChunks];
     memset(dataBufs, 0, totalNumOfChunks);
 
-    for(int i=0; i < numData; i++)
+    for(int i=0; i < totalNumOfChunks; i++)
     {
       dataBufs[i] = new char[chunkSize];
-      generateData(dataBufs[i], chunkSize);
+      if(i < numData)
+      {
+       generateData(dataBufs[i], chunkSize);
+      }
     }
+     void** theDataBufs = reinterpret_cast<void**>(dataBufs);     
 
+   
 
-    encoder->Encode(numData, numParity, chunkSize, dataBufs); 
+    encoder->Encode(numData, numParity, chunkSize, theDataBufs); 
+    
+    char** tempdataBufs = new char*[totalNumOfChunks];
+    memset(tempdataBufs, 0, totalNumOfChunks);
+    for(int i=0; i < totalNumOfChunks; i++)
+    {
+      tempdataBufs[i] = new char[chunkSize];
+    }
+     
+     //void** theTempDataBufs = reinterpret_cast<void**>(tempdataBufs);
      
 
      int numberOfFailures = 1;
-     int lost_device_id = 2;
+     int lost_device_id = numData; //assume the first coding device fails... this will make maximum work. probably
     
      int numberOfSurvivors = totalNumOfChunks - numberOfFailures; 
      int survivors[numberOfSurvivors];
@@ -413,21 +452,47 @@ void RSStriper::comparePartialVSFullDecoding_test(int chunkSize, int numData, in
      {
          if(deviceId == lost_device_id)
          {
+            //erasures[indexArrErasure] = 1;
             erasures[indexArrErasure] = deviceId;
             indexArrErasure++;
-            continue;
          }
-         survivors[indexArrSurvivor] = deviceId;
-         indexArrSurvivor++;
+         else
+         {
+            //erasures[indexArrErasure] = 0;
+            //indexArrErasure++;
+            survivors[indexArrSurvivor] = deviceId;
+            indexArrSurvivor++;
+         }
      }
-     
+     erasures[indexArrErasure] = -1; //marks the end according to jerasure library requrement
+ 
+     int64_t t1 = microseconds(); 
+     if(false == isPartial)
+     {
+        RSStriper::serialDecode_test(ecm, chunkSize, numData, numParity, theDataBufs, erasures, lost_device_id);
+     }
+     else
+     {
+        RSStriper::partialDecode_test(ecm, chunkSize,numData, numParity, dataBufs, tempdataBufs, erasures, survivors, numberOfSurvivors, lost_device_id, simulateParallelDecoding);
+     }
+     int64_t t2 = microseconds(); 
 
-     RSStriper::serialDecode_test(ecm, chunkSize, numData, numParity, erasures);
-     RSStriper::partialDecode_test(chunkSize,numData, numParity, erasures, survivors, numberOfSurvivors);
+     duration = t2 - t1;
+
+     delete [] dataBufs;
+     delete [] tempdataBufs;
+
+     //KFS_LOG_STREAM_ERROR <<  "For : " << numData << " + " << numParity << " decoding, serial and partial decoding took = " << duration1  << " and " << duration2 << KFS_LOG_EOM; 
+}
+void comparePartialVSFullDecoding_test(int chunkSize, int numData, int numParity, int64_t& duration1, int64_t& duration2,int64_t& duration3)
+{
+     runDecodingAlgo(chunkSize,numData,numParity,duration1,false,false);
+     runDecodingAlgo(chunkSize,numData,numParity,duration2,true, true);
+     runDecodingAlgo(chunkSize,numData,numParity,duration3,true, false);
 }
 //subrata end
 
-#endif
+//#endif
 
 const char* const kNullCharPtr = 0;
 

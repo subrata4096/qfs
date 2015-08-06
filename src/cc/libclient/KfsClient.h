@@ -76,6 +76,9 @@ public:
 
     KfsClient(client::KfsNetClient* metaServer = 0);
     ~KfsClient();
+   
+    static void doDecodePerformanceTest(int chunkSize, int numData, int numParity,int64_t& durartion1, int64_t& duration2,int64_t& duration3);
+
 
     ///
     /// @param[in] metaServerHost  Machine on meta is running

@@ -23,14 +23,24 @@
 #
 
 add_executable (qfssample qfssample_main.cc)
+add_executable (qfsCompareDecodingPerf qfsCompareDecoding.cc)
 
 if (USE_STATIC_LIB_LINKAGE)
     add_dependencies (qfssample kfsClient)
     target_link_libraries (qfssample kfsClient)
+    
+    add_dependencies (qfsCompareDecodingPerf kfsClient)
+    target_link_libraries (qfsCompareDecodingPerf kfsClient)
 else (USE_STATIC_LIB_LINKAGE)
     target_link_libraries (qfssample kfsClient-shared)
     add_dependencies (qfssample kfsClient-shared)
+
+    target_link_libraries (qfsCompareDecodingPerf kfsClient-shared)
+    add_dependencies (qfsCompareDecodingPerf kfsClient-shared)
 endif (USE_STATIC_LIB_LINKAGE)
 
 install (TARGETS qfssample
+    RUNTIME DESTINATION bin/examples)
+
+install (TARGETS qfsCompareDecodingPerf
     RUNTIME DESTINATION bin/examples)

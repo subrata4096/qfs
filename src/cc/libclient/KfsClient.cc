@@ -238,6 +238,13 @@ KfsClient::~KfsClient()
     delete mImpl;
 }
 
+/*static*/
+void KfsClient::doDecodePerformanceTest(int chunkSize, int numData, int numParity,int64_t& durartion1, int64_t& duration2,int64_t& duration3)
+{
+     KFS::client::comparePartialVSFullDecoding_test(chunkSize, numData, numParity, durartion1, duration2, duration3);
+
+}
+
 void
 KfsClient::SetLogLevel(const string &logLevel)
 {

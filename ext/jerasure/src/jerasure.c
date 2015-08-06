@@ -333,8 +333,8 @@ int jerasure_matrix_decode(int k, int m, int w, int *matrix, int row_k_ones, int
   
   //printf("subrata: decoding matrix is : \n");
   //char* fname1 = "/home/mitra/decode_mat.txt";
-  char* fname1 = NULL;
-  jerasure_print_matrix(decoding_matrix,k,k,w,fname1);
+  //char* fname1 = NULL;
+  //jerasure_print_matrix(decoding_matrix,k,k,w,fname1);
 
   /* Decode the data drives.  
      If row_k_ones is true and coding device 0 is intact, then only decode edd-1 drives.
@@ -351,8 +351,8 @@ int jerasure_matrix_decode(int k, int m, int w, int *matrix, int row_k_ones, int
   }
   //printf("subrata: encoding matrix is : \n");
   //char* fname2 = "/home/mitra/encode_mat.txt";
-  char* fname2 = NULL;
-  jerasure_print_matrix(decoding_matrix,(k+m),k,w,fname2);
+  //char* fname2 = NULL;
+  //jerasure_print_matrix(decoding_matrix,(k+m),k,w,fname2);
 
   /* Then if necessary, decode drive lastdrive */
 

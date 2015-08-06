@@ -69,6 +69,8 @@ bool RSStriperValidate(
     int     inStripeSize,
     string* outErrMsgPtr);
 
+void comparePartialVSFullDecoding_test(int chunkSize, int numData, int numParity, int64_t& duration1, int64_t& duration2,int64_t& duration3);
+
 }}
 
 #endif /* KFS_LIBCLIENT_RSSTRIPER_H */

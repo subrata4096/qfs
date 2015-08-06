@@ -169,7 +169,7 @@ private:
             void**     inBuffersPtr,
             int const* inMissingStripesIdxPtr)
         {
-            return 0;  //Commenting this out as  we do not want to compare... decoding for now. just want to compare network transfer and IO
+            //return 0;  //Commenting this out as  we do not want to compare... decoding for now. just want to compare network transfer and IO
             return jerasure_matrix_decode(
                 inStripeCount,
                 inRecoveryStripeCount,
