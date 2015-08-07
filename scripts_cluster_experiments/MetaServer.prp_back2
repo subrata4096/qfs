@@ -14,4 +14,3 @@ metaServer.rootDirUser = 1001
 metaServer.rootDirGroup = 1001
 metaServer.rootDirMode = 0777
 metaServer.pidFile = /home/ubuntu/qfsbase/meta/metaserver.pid
-metaServer.fileSystemIdRequired = 0

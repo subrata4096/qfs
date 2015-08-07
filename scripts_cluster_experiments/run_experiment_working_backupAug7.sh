@@ -192,7 +192,6 @@ sleep 10
 
 
 chunkservers="192.168.0.246 192.168.0.250 192.168.0.251 192.168.0.252 192.168.0.253 192.168.0.254 192.168.0.26 192.168.0.27 192.168.0.28 192.168.0.29 192.168.0.3 192.168.0.30 192.168.0.31 192.168.0.32 192.168.0.33"
-#chunkservers="192.168.0.246 192.168.0.250 192.168.0.251 192.168.0.252 192.168.0.253 192.168.0.254 192.168.0.27 192.168.0.28 192.168.0.29 192.168.0.3 192.168.0.30 192.168.0.31 192.168.0.32 192.168.0.33"
 #chunkservers="192.168.0.246 192.168.0.250 192.168.0.251 192.168.0.252 192.168.0.253 192.168.0.254 192.168.0.26 192.168.0.27 192.168.0.28 192.168.0.29"
 
 
@@ -238,17 +237,13 @@ for s in $chunkservers
 do
 	echo "Counting chunks: $s"
         res=$(countChunksOnChunkServer $s)
-        echo "$s  has : $res"
-        #if ((res == numChunksToLose))
-        if ((res >= numChunksToLose))
+        
+        if ((res == numChunksToLose))
         then
            toKillChunkServer=$s
            break
         fi
 done
-
-#echo "Now sleeping for 5 hours!!"
-#sleep 18000
 
 echo "Killing Chunk Server : $toKillChunkServer"
 ssh ubuntu@$toKillChunkServer 'bash -s' < $chunkKillScriptName

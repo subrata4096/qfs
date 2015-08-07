@@ -3,9 +3,10 @@
 
 function doCompile {
             chunkserverIP=$1
+            scriptName=$2
             #echo $chunkKillScriptName
             #echo $chunkRunScriptName
-            ssh ubuntu@$chunkserverIP 'bash -s' < $chunkKillScriptName
+            ssh ubuntu@$chunkserverIP "$scriptName"
 }
 
 function doSCP {
@@ -19,15 +20,17 @@ function doSCP {
 chunkservers="192.168.0.246 192.168.0.250 192.168.0.251 192.168.0.252 192.168.0.253 192.168.0.254 192.168.0.26 192.168.0.27 192.168.0.28 192.168.0.29 192.168.0.3 192.168.0.30 192.168.0.31 192.168.0.32 192.168.0.33 192.168.0.34"
 
 chunkKillScriptName="/home/ubuntu/doCompile.sh"
-#chunkKillScriptName="/home/ubuntu/doCompile_orig.sh"
+chunkKillScriptNameOrig="/home/ubuntu/doCompile_orig.sh"
 
 $chunkKillScriptName &
+$chunkKillScriptNameOrig &
 
 for s in $chunkservers
 do
 	echo "Processing $s"
 #        scp $chunkKillScriptName ubuntu@$s:/home/ubuntu/
-        doCompile $s &
+        doCompile $s $chunkKillScriptName &
+        #doCompile $s $chunkKillScriptNameOrig &
 done
 wait
 echo "Done all compiling"
