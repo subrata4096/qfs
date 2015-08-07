@@ -112,7 +112,11 @@ ChunkLRUCache::ChunkLRUCache(int cacheSizeLimit)
 
 void ChunkLRUCache::printChunkCacheMap()
 {
-   KFS_LOG_STREAM_ERROR << "subrata : printChunkCacheMap printing .. " << KFS_LOG_EOM;
+   int size = chunkInMemoryCache.size();
+   KFS_LOG_STREAM_ERROR << "subrata : printChunkCacheMap printing .. total entry in cache = "  << size << KFS_LOG_EOM;
+
+   return;  //return do not print anything for now
+
    std::map<int64_t, ChunkCacheEntry*> :: iterator mapStart = chunkInMemoryCache.begin();
    std::map<int64_t, ChunkCacheEntry*> :: iterator mapEnd = chunkInMemoryCache.end();
    for(; mapStart != mapEnd; mapStart++)
@@ -4103,6 +4107,9 @@ ChunkManager::ReadChunk(ReadOp* op)
     //subrata add
     // Little bit risky change.. we want to avoid reading from disk if the chunk is already available in the LRU cache
     IOBuffer* cacheBufferForThisChunk = NULL;
+
+    chunkLRUCache.printChunkCacheMap();
+
     bool isChunkReadSuccessfully = chunkLRUCache.readChunkFromCache(op->chunkId, &cacheBufferForThisChunk);
     
     if(isChunkReadSuccessfully && (NULL != cacheBufferForThisChunk))
