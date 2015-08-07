@@ -84,6 +84,7 @@ struct ChunkLRUCache {
     std::map<kfsChunkId_t, bool> chunksDeletedSinceLastHB;
     
     ChunkLRUCache(int cacheSizeLimit);
+    void SetCacheEntryLimit(int cacheSizeLimit);
     bool isChunkInCache(kfsChunkId_t chunkId);
     bool readChunkFromCache(kfsChunkId_t chunkId, /*output*/ IOBuffer** chunkBuff); //we will set this pointer from inside, if we find the chunk
     bool addChunkToCache(kfsChunkId_t chunkId, /*input*/ IOBuffer* chunkBuff, size_t buffSize); //will keep latest "N" chunks and remove old chunk buffers

@@ -109,11 +109,16 @@ ChunkLRUCache::ChunkLRUCache(int cacheSizeLimit)
 {
         cacheEntryLimit = cacheSizeLimit;
 }
+void ChunkLRUCache::SetCacheEntryLimit(int cacheSizeLimit)
+{
+        KFS_LOG_STREAM_DEBUG << "subrata : changing cacheEntryLimit to " << cacheEntryLimit << KFS_LOG_EOM;
+        cacheEntryLimit = cacheSizeLimit;
+}
 
 void ChunkLRUCache::printChunkCacheMap()
 {
    int size = chunkInMemoryCache.size();
-   KFS_LOG_STREAM_ERROR << "subrata : printChunkCacheMap printing .. total entry in cache = "  << size << KFS_LOG_EOM;
+   KFS_LOG_STREAM_ERROR << "subrata : printChunkCacheMap printing .. total entry in cache  = "  << size << KFS_LOG_EOM;
 
    return;  //return do not print anything for now
 
@@ -2285,6 +2290,8 @@ bool
 ChunkManager::SetParameters(const Properties& prop)
 {
     ChunkLRUCache::doNotUseCache = (bool)prop.getValue("chunkServer.doNotUseLRUCacheFlag", ChunkLRUCache::doNotUseCache);
+    int lruCacheEntryLimit = (int)prop.getValue("chunkServer.chunkLRUCacheEntryLimit", chunkLRUCache.cacheEntryLimit);
+    chunkLRUCache.SetCacheEntryLimit(lruCacheEntryLimit);
     //CHUNKSIZE = (int)prop.getValue("chunkServer.CHUNKSIZE", CHUNKSIZE0) != 0;
 
     mInactiveFdsCleanupIntervalSecs = max(0, (int)prop.getValue(
