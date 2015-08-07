@@ -44,6 +44,7 @@
 #include <set>
 #include <stdlib.h> 
 #include <string.h>
+#include <math.h> 
 #include <boost/static_assert.hpp>
 
 namespace KFS
@@ -361,19 +362,22 @@ void RSStriper::partialDecode_test(KFS::client::ECMethod* ecm, int chunkSize, in
 
    char* chunkBeingRepaired = dataBufs[lost_device_id];
 
-   int numberOfDecodings = numData;
+   int numberOfMultiplications = numData;
+   int numberOfAdditions = numData;
    if(simulateParallelDecoding)
-   {
-       numberOfDecodings = 1;
+   { 
+       numberOfMultiplications = 1;
+       numberOfAdditions = (int)((double)(0.5 + log2(numData)));
    }
 
-   for(int i = 0 ; i < numberOfDecodings ; i ++ )
+   for(int i = 0 ; i < numberOfMultiplications ; i ++ )
    {
         int multCoeff = coefficients[i];
         
         int theRet = KFS::client::ECMethod::Jerasure_Multiply(theW, chunkSize, multCoeff, dataBufs[i], tempdataBufs[i]);
    }
-   for(int i = 0 ; i < numberOfDecodings ; i ++ )
+
+   for(int i = 0 ; i < numberOfAdditions ; i ++ )
    {
         int theRet = KFS::client::ECMethod::Jerasure_Add(chunkSize, tempdataBufs[i], chunkBeingRepaired);
    }
